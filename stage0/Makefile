@@ -11,4 +11,4 @@ planckforth: planckforth.xxd
 clean:
 	rm -f planckforth
 
-test: planckfoth
+test: planckforth

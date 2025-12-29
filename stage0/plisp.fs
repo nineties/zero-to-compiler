@@ -853,10 +853,6 @@ alias-builtin key k
 \ allocate n bytes
 : allot ( n -- ) aligned &here +!  ;
 
-\ allocate user memory
-: %allot ( size -- addr ) aligned here swap allot ;
-
-
 ( === create and does> === )
 
 \ no-operation
@@ -1553,6 +1549,55 @@ do-stack 16 cells + do-sp !
     cr
 ;
 
+( === Data Structure === )
+
+\ align n1 to u-byte boundary
+: aligned-by ( n1 u -- n2 )
+    1- dup invert   \ ( n1 u-1 ~(u-1) )
+    -rot + and
+;
+
+\ align here to u-byte boundary
+: align-by ( u -- )
+    here swap aligned-by &here !
+;
+
+: struct ( -- offset )
+    0
+;
+
+\ struct ... end-struct new-word
+\ defines new-word as an operator
+\ that returns alignment and size of the struct.
+\ new-word: ( -- align size )
+: end-struct ( offset "name" -- )
+    create , does> @ cell swap
+;
+
+: cell% ( -- align size ) cell cell ;
+: char% ( -- align size ) 1 1 ;
+: byte% 1 1 ;
+: ptr% cell% ;
+: int% cell% ;
+: i32% 4 4 ;
+: u32% 4 4 ;
+: i16% 2 2 ;
+: u16% 2 2 ;
+
+\ allocate user memory
+: %allot ( align size -- addr )
+    here -rot swap align-by allot
+;
+
+: field ( offset1 align size "name" -- offset2 )
+    \ align offset with 'align'
+    -rot aligned-by \ ( size offset )
+    create
+        dup ,   \ fill offset
+        +       \ return new offset
+    does> @ +
+;
+
 ( === Defer and Is === )
 \ Defer and Is enables use of mutual recursion.
 
@@ -1630,6 +1675,481 @@ s" Not supported" exception constant NOT-SUPPORTED
 s" Not reachable here. may be a bug" exception constant NOT-REACHABLE
 : not-reachable NOT-REACHABLE throw ;
 
+( === System Calls === )
+
+0b000 constant eax immediate
+0b001 constant ecx immediate
+0b010 constant edx immediate
+0b011 constant ebx immediate
+0b100 constant esp immediate
+0b101 constant ebp immediate
+0b110 constant esi immediate
+0b111 constant edi immediate
+
+: mod-reg-r/m ( mod reg r/m -- u )
+    0
+    swap 0x7 and or
+    swap 0x7 and 8 * or
+    swap 0x3 and 64 * or
+;
+
+: scale-index-byte ( scale index byte -- u )
+    0
+    swap 0x7 and or
+    swap 0x7 and 8 * or
+    swap 0x3 and 64 * or
+;
+
+\ compile 'pop reg' and 'push reg'
+: pop ( reg -- ) 0x58 + c, ; immediate
+: push ( reg -- ) 0x50 + c, ; immediate
+
+\ lodsl; jmp *(%eax);
+: next ( -- ) 0xad c, 0xff c, 0x20 c, ; immediate
+: int80 ( -- ) 0xcd c, 0x80 c, ; immediate
+
+\ movl disp(reg1), reg2
+: movmr ( disp reg1 reg2 -- )
+    0x8b c, \ opcode
+    swap dup 0b100 = if \ if reg1=esp
+        \ ( disp reg2 reg1 )
+        0b01 -rot mod-reg-r/m c,
+        0b00 0b100 0b100 scale-index-byte c,
+    else
+        \ ( disp reg2 reg1 )
+        0b01 -rot mod-reg-r/m c,
+    then
+    c, \ displacement
+; immediate
+
+\ overwrite code field by DFA
+: ;asm
+    [compile] ; \ finish compilation
+    latest dup >dfa swap >cfa !
+; immediate
+
+: syscall0 ( n -- e )
+    eax pop
+    int80
+    eax push
+    next
+;asm
+
+: syscall1 ( arg1 n -- e )
+    eax pop
+    ebx pop
+    int80
+    eax push
+    next
+;asm
+
+: syscall2 ( arg2 arg1 n -- e )
+    eax pop
+    ebx pop
+    ecx pop
+    int80
+    eax push
+    next
+;asm
+
+: syscall3 ( arg3 arg2 arg1 n -- e )
+    eax pop
+    ebx pop
+    ecx pop
+    edx pop
+    int80
+    eax push
+    next
+;asm
+
+: syscall4 ( arg4 arg3 arg2 arg1 n -- e )
+    eax pop
+    ebx pop
+    ecx pop
+    edx pop
+    esi push            \ save program counter ( arg4 esi )
+    [ 4 ] esp esi movmr     \ movl 4(%esp), %esi
+    int80
+    esi pop             \ restore esi
+    ebx pop
+    eax push
+    next
+;asm
+
+: syscall5 ( arg5 arg4 arg3 arg2 arg1 n -- e )
+    eax pop
+    ebx pop
+    ecx pop
+    edx pop
+    esi push            \ save esi ( arg5 arg4 esi )
+    [ 4 ] esp esi movmr
+    [ 8 ] esp edi movmr
+    int80
+    esi pop
+    ebx pop
+    ebx pop
+    eax push
+    next
+;asm
+
+: syscall6 ( arg6 arg5 arg4 arg3 arg2 arg1 n -- e )
+    eax pop
+    ebx pop
+    ecx pop
+    edx pop
+    esi push
+    ebp push    \ ( arg6 arg5 arg4 esi ebp )
+    [ 8 ] esp esi movmr
+    [ 12 ] esp edi movmr
+    [ 16 ] esp ebp movmr
+    int80
+    ebp pop
+    esi pop
+    ebx pop
+    ebx pop
+    ebx pop
+    eax push
+    next
+;asm
+
+( === Heap Memory === )
+
+192 constant SYS-MMAP2
+
+0x0 constant PROT-NONE
+0x1 constant PROT-READ
+0x2 constant PROT-WRITE
+0x4 constant PROT-EXEC
+0x8 constant PROT-SEM
+
+0x01 constant MAP-SHARED
+0x02 constant MAP-PRIVATE
+0x0f constant MAP-TYPE
+0x10 constant MAP-FIXED
+0x20 constant MAP-ANONYMOUS
+
+: mmap2 ( addr1 u -- addr2 e )
+    >r >r                                   \ ( R: u addr1 )
+    0                                       \ offset
+    -1                                      \ fd
+    MAP-ANONYMOUS MAP-PRIVATE or            \ flags
+    PROT-READ PROT-WRITE or PROT-EXEC or    \ prot
+    r> r> swap                              \ u addr1
+    SYS-MMAP2
+    syscall6
+    dup -1 = if
+        ALLOCATE-ERROR
+    else
+        success
+    then
+;
+
+\ Secure a large heap memory block and cut memories from the block.
+\ The allocated memories are never released until the program exit.
+0x8000000 constant BLOCK-SIZE ( 128MB )
+variable block-addr
+variable next-addr
+variable remaining-size
+
+0 BLOCK-SIZE mmap2 throw block-addr !
+block-addr @ next-addr !
+BLOCK-SIZE remaining-size  !
+
+\ Allocate u bytes of heap memory
+\ The region must be zero cleared.
+: allocate ( u -- addr e )
+    dup remaining-size @ <= if
+        ( u addr )
+        next-addr @
+        swap aligned dup next-addr +! remaining-size -!
+        success
+    else
+        drop 0 ALLOCATE-ERROR
+    then
+;
+
+\ allocate heap memory
+: %allocate ( align size -- addr e )
+    over 1- + allocate ?dup unless
+        swap 1- tuck + swap invert and success
+    then
+;
+
+\ Bootstrapping version of free do nothing.
+: (free) ( addr -- ) drop ;
+
+( === File I/O === )
+
+-1 constant EOF
+
+\ file access methods (fam)
+0x000 constant R/O  \ read-only
+0x241 constant W/O  \ write-only
+0x242 constant R/W  \ read-write
+
+1024 constant BUFSIZE
+128 constant FILENAME-MAX
+
+\ File
+struct
+    cell% field file>fd     \ file descriptor
+    cell% field file>read   ( c-addr u fd -- n )
+    cell% field file>write  ( c-addr u fd -- n )
+
+    char% field file>fam
+    char% FILENAME-MAX * field file>name
+
+    \ read buffer
+    cell% field file>rbuf
+    cell% field file>rbeg   \ read head
+    cell% field file>rend
+
+    \ write buffer
+    cell% field file>wbuf
+    cell% field file>wbeg   \ write head
+    cell% field file>wend
+end-struct file%
+
+: writable? ( file -- f ) file>fam c@ R/O <> ;
+: readable? ( file -- f ) file>fam c@ W/O <> ;
+
+\ Write buffer
+\ +-------------+-----+
+\ |aaaaaaaaaaaaa|     |
+\ +-------------+-----+
+\ ^             ^     ^
+\ wbuf          wbeg  wend
+
+: write-buffer-content ( file -- c-addr u )
+    dup file>wbeg @ swap file>wbuf @ tuck -
+;
+
+: empty-write-buffer ( file -- )
+    dup file>wbuf @ over file>wbeg !
+    dup file>wbuf @ over file>wend !
+    drop
+;
+
+: succ-write-buffer ( file n -- )
+    swap file>wbeg +!
+;
+
+: write-buffer-count ( file -- n )
+    dup file>wbeg @ swap file>wbuf @ -
+;
+
+\ Read buffer
+\ +-------------+-----+
+\ |     |aaaaaaa|     |
+\ +-------------+-----+
+\ ^     ^       ^
+\ rbuf  rbeg    rend
+
+: read-buffer-content ( file -- c-addr u)
+    dup file>rend @ swap file>rbeg @ tuck -
+;
+
+: empty-read-buffer ( file -- )
+    dup file>rbuf @ over file>rbeg !
+    dup file>rbuf @ over file>rend !
+    drop
+;
+
+: succ-read-buffer ( file n -- )
+    swap file>rbeg +!
+;
+
+: read-buffer-count ( file -- n )
+    dup file>rend @ swap file>rbeg @ -
+;
+
+\ Flush output buffer of file, return error-code.
+: flush-file ( file -- e )
+    dup writable? unless FLUSH-FILE-ERROR exit then
+    dup write-buffer-content ( file buf u )
+    begin
+        ( file buf u )
+        dup 0= if 2drop empty-write-buffer success exit then
+        2dup 4 pick file>fd @ 5 pick file>write @ execute
+        ( file buf u n )
+        dup 0< if 2drop FLUSH-FILE-ERROR exit then
+        ( file buf u n )
+        2dup < if not-reachable then
+        tuck - >r + r>
+        ( file buf+n u-n )
+    again
+;
+
+\ Write bytes from c-addr u to file, return error-code.
+: write-file ( c-addr u file -- e )
+    dup writable? unless WRITE-FILE-ERROR exit then
+    over 0<= if 3drop WRITE-FILE-ERROR exit then
+
+    dup write-buffer-content nip BUFSIZE swap - ( space )
+    2 pick
+    ( c-addr u file space u )
+    >= if
+        \ enogu space, copy u-bytes from c-addr to buf
+        ( c-addr u file )
+        2 pick over file>wbeg @ 3 pick memcpy
+        \ increment wbeg
+        swap succ-write-buffer drop success exit
+    then
+    ( c-addr u file buf )
+    not-implemented
+    dup flush-file throw
+
+    over BUFSIZE <= if
+        \ fill data to wbuf
+        2 pick over file>wbeg @ 3 pick memcpy
+        swap succ-write-buffer drop success exit
+    then
+
+    \ write large data directly to the file
+    begin
+        ( c-addr u file )
+        2 pick 2 pick 2 pick file>fd @ 3 pick file>write @ execute
+        ( c-addr u file n )
+        dup 0< if 2drop 2drop WRITE-FILE-ERROR exit then
+        swap >r succ-buffer r>
+        over 0>
+    until
+    empty-write-buffer 2drop success
+;
+
+\ Read u1-bytes at most from file, write it to c-addr.
+\ Return number of bytes read and error-code.
+: read-file ( c-addr u1 file -- u2 e )
+    dup readable? unless READ-FILE-ERROR exit then
+    over 0<= if 3drop 0 success exit then
+
+    dup read-buffer-count 2 pick ( count u1 )
+    >= if
+        \ enough data in read buffer
+        dup file>rbeg @ 3 pick 3 pick memcpy
+        \ increment rbeg
+        over succ-read-buffer
+        nip success exit
+    then
+
+    \ copy rbeg..rend to the buffer
+    dup read-buffer-content 4 pick swap memcpy
+    ( buf u file )
+    dup read-buffer-count dup >r
+    ( buf u file n , R:written )
+    swap >r succ-buffer r>
+    dup empty-read-buffer
+
+    ( buf u file , R:count )
+    over BUFSIZE <= if
+        \ read data to rbuf as much as BUFSIZE
+        dup file>rbuf @ BUFSIZE 2 pick file>fd @ 3 pick file>read @ execute
+        dup 0< if 2drop 2drop r> READ-FILE-ERROR exit then
+        ( buf u file n , R:count )
+        dup 2 pick file>rend +!
+        2 pick min
+        over file>rbeg @ 4 pick 2 pick memcpy
+        dup 2 pick file>rbeg +!
+        ( buf u file n , R:count )
+        >r 3drop r> r> + success
+    else
+        \ read large data directly from the file
+        dup file>fd @ swap file>read @ execute
+        ( n , R:count )
+        dup 0< if drop r> READ-FILE-ERROR exit then
+        r> + success
+    then
+;
+
+\ Read a character. Return EOF at end of input.
+: key-file ( file -- c )
+    0 sp@ 1 3 pick read-file throw
+    ( file c u )
+    1 = if
+        nip
+    else
+        2drop EOF
+    then
+;
+
+\ Read characters from 'file' to the buffer c-addr u1
+\ until reaches '\n' or end of file, null character is
+\ stored at last.
+\ u2 is the number of characters written to the buffer.
+\ flag=true if it reads '\n'. e is error code.
+: read-line ( c-addr u1 file -- u2 e )
+    over 1- 0 do
+        2 pick i + 1 2 pick read-file
+        dup 0< if false leave then
+        drop
+        ( c-addr u1 file u2 )
+        0= if i success false leave then \ EOF
+        2 pick i + c@ '\n' = if
+            i 1+ success true leave
+        then
+    loop
+    ( c-addr u1 file u2 e flag )
+    >r >r
+    3 pick over + 0 swap c! \ fill '\0'
+    >r 3drop r> r> r> swap
+;
+
+3 constant SYS-READ
+4 constant SYS-WRITE
+5 constant SYS-OPEN
+6 constant SYS-CLOSE
+
+: (open) ( c-addr fam -- fd )
+    0b110100100 -rot swap SYS-OPEN syscall3
+;
+
+: (close) ( obj -- n )
+    SYS-CLOSE syscall1
+;
+
+: (read) ( c-addr u fd -- n )
+    >r swap r> SYS-READ syscall3
+;
+
+: (write) ( c-addr u1 fd -- n )
+    >r swap r>              \ ( u1 u1 c-addr fd )
+    SYS-WRITE syscall3      \ ( u2 )
+;
+
+: open-file ( c-addr fam -- file e )
+    2dup (open) dup 0< if
+        ( c-addr fam fd )
+        3drop 0 OPEN-FILE-ERROR exit
+    then
+    file% %allocate throw
+    tuck file>fd !
+    tuck file>fam !
+    tuck file>name FILENAME-MAX strncpy
+    ['] (read) over file>read !
+    ['] (write) over file>write !
+    dup file>fam @ W/O <> if
+        BUFSIZE allocate throw over file>rbuf !
+        dup file>rbuf @ over file>rbeg !
+        dup file>rbuf @ over file>rend !
+    then
+    dup file>fam @ R/O <> if
+        BUFSIZE allocate throw over file>wbuf !
+        dup file>wbuf @ over file>wbeg !
+        dup file>wbuf @ BUFSIZE + over file>wend !
+    then
+    success
+;
+
+: close-file ( file -- e )
+    dup file>fd @ swap
+    ( fd file )
+    \ release heap objects
+    dup file>rbuf @ (free)
+    dup file>wbuf @ (free)
+    (free)
+    \ close file object
+    (close) 0= if success else CLOSE-FILE-ERROR then
+;
 
 ( === End of bootstrap of PlanckForth === )
 ( === Implementation of PlanckLISP === )
@@ -1679,18 +2199,18 @@ s" Not reachable here. may be a bug" exception constant NOT-REACHABLE
 6 constant Node_Cons
 
 : make-tup0 ( type -- value )
-    1 cells %allot
+    1 cells allocate throw
     tuck !
 ;
 
 : make-tup1 ( arg0 type -- value )
-    2 cells %allot ( arg0 type ptr )
+    2 cells allocate throw ( arg0 type ptr )
     tuck !
     tuck 1 cells + !
 ;
 
 : make-tup3 ( arg1 arg0 type -- value )
-    3 cells %allot ( arg1 arg0 type ptr )
+    3 cells allocate throw ( arg1 arg0 type ptr )
     tuck !
     tuck 1 cells + !
     tuck 2 cells + !
@@ -1706,7 +2226,7 @@ Node_Nil make-tup0 constant nil
 : make-int ( n -- atom ) Node_Int make-tup1 ;
 : make-symbol ( c-addr -- atom )
     \ duplicate given string
-    dup strlen 1+ %allot tuck strcpy
+    dup strlen 1+ allocate throw tuck strcpy
     Node_Symbol make-tup1
 ;
 : make-quote ( atom -- atom ) Node_Quote make-tup1 ;

@@ -1,5 +1,5 @@
-zero-to-compiler
-================
+Zero To Compiler Project
+========================
 
 Overview
 --------

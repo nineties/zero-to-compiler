@@ -1451,6 +1451,27 @@ do-stack 16 cells + do-sp !
     cr
 ;
 
+( === Defer and Is === )
+\ Defer and Is enables use of mutual recursion.
+
+\ defer even
+\ defer odd
+
+\ : even-impl dup 0= if drop true else 1- odd then ;
+\ : odd-impl  dup 0= if drop false else 1- even then ;
+
+\ ' even-impl is even
+\ ' odd-impl is odd
+
+: defer ( "name" -- )
+    create 0 , does> @ execute
+;
+
+: is ( xt "name" -- )
+    word find >cfa >body !
+;
+
+
 ( === End of bootstrap of PlanckForth === )
 ( === Implementation of PlanckLISP === )
 

@@ -27,16 +27,19 @@ Bootstrapping Process
 The system is built in explicit stages, each providing the minimum functionality
 required for the next stage.
 
-Stage0: From Hex to Forth to LISP
-~~~~~~~~~~~~~~~~~~~~~
+Stage0: Hex -> Forth -> Lisp
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Stage0 begins with a minimal Forth interpreter written by hand in machine code.
 Using Forth’s self-extensibility, this interpreter is grown into a more capable
 language environment, eventually producing a simple Lisp interpreter.
 
 Starting from hand-written machine code imposes strong constraints, but these can
-be addressed by leveraging core features of Forth. Lisp is chosen as the output of
-Stage0 because later stages require direct manipulation of syntax trees.
+be addressed by leveraging core features of Forth.
+
+Lisp is selected as the target of Stage0 because subsequent stages involve building
+tools such as assemblers and linkers. Lisp is well suited for this role, as it allows
+easy construction of internal DSLs and direct manipulation of syntax trees.
 
 Stage1
 ~~~~~~

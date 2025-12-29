@@ -1485,8 +1485,44 @@ do-stack 16 cells + do-sp !
     endcase
 ;
 
+: is-atom-char ( c -- bool )
+    case
+        '0' '9' rangeof true endof
+        'a' 'z' rangeof true endof
+        'A' 'Z' rangeof true endof
+        '+' of true endof
+        '-' of true endof
+        '*' of true endof
+        '/' of true endof
+        '<' of true endof
+        '>' of true endof
+        '=' of true endof
+        '?' of true endof
+        '!' of true endof
+        '_' of true endof
+        ':' of true endof
+        '$' of true endof
+        '%' of true endof
+        '&' of true endof
+        '^' of true endof
+        '~' of true endof
+        '@' of true endof
+        drop false
+    endcase
+;
+
 0 constant Node_Int
 1 constant Node_Symbol
+2 constant Node_Quote
+3 constant Node_Quasiquote
+4 constant Node_Unquote
+5 constant Node_Nil
+6 constant Node_Cons
+
+: make-tup0 ( type -- value )
+    1 cells %allot
+    tuck !
+;
 
 : make-tup1 ( arg0 type -- value )
     2 cells %allot ( arg0 type ptr )
@@ -1494,15 +1530,49 @@ do-stack 16 cells + do-sp !
     tuck 1 cells + !
 ;
 
+: make-tup3 ( arg1 arg0 type -- value )
+    3 cells %allot ( arg1 arg0 type ptr )
+    tuck !
+    tuck 1 cells + !
+    tuck 2 cells + !
+;
+
+Node_Nil make-tup0 constant nil
+: make-cons ( cdr car -- cons )
+    Node_Cons make-tup3
+;
+: car ( cons -- car ) 1 cells + @ ;
+: cdr ( cons -- cdr ) 2 cells + @ ;
+
 : make-int ( n -- atom ) Node_Int make-tup1 ;
 : make-symbol ( c-addr -- atom )
     \ duplicate given string
     dup strlen 1+ %allot tuck strcpy
     Node_Symbol make-tup1
 ;
-: make-quote      ." Not implemented: make-quote" cr quit ;
-: make-quasiquote ." Not implemented: make-quasiquote" cr quit ;
-: make-unquote    ." Not implemented: make-unquote" cr quit ;
+: make-quote ( atom -- atom ) Node_Quote make-tup1 ;
+: make-quasiquote ( atom -- atom ) Node_Quasiquote make-tup1 ;
+: make-unquote ( atom -- atom ) Node_Unquote make-tup1 ;
+
+: print-sexp ( sexp -- )
+    dup @ case
+    Node_Int of 1 cells + @ 10 swap print-int endof
+    Node_Symbol of 1 cells + @ type endof
+    Node_Quote of '\'' emit 1 cells + @ recurse endof
+    Node_Quasiquote of '`' emit 1 cells + @ recurse endof
+    Node_Unquote of ',' emit 1 cells + @ recurse endof
+    Node_Nil of drop ." ()" endof
+    Node_Cons of 
+        '(' emit
+        dup car recurse
+        cdr
+        begin dup nil <> while 
+            bl emit
+            dup car recurse cdr
+        repeat drop
+        ')' emit
+    endcase
+;
 
 : parse-error
     ." Parse Error" cr quit
@@ -1514,17 +1584,17 @@ do-stack 16 cells + do-sp !
 \ Allocate a buffer for atom tokens
 create tokbuf 1024 allot
 
-: parse-atom ( c -- sexp )
+: parse-atom ( c -- c sexp )
     case
         '"'  of parse-string-literal endof
         '\'' of parse-character-literal endof
         \ read characters to tokbuf
         tokbuf tuck c! 1+
-        begin key dup is-blank not while
+        begin key dup is-atom-char while
             over c! 1+
-        repeat drop
-        0 over c! \ null
-        drop tokbuf >number if
+        repeat swap
+        0 swap c! \ null
+        tokbuf >number if
             make-int
         else
             drop tokbuf make-symbol
@@ -1532,28 +1602,36 @@ create tokbuf 1024 allot
     endcase
 ;
 
-: parse-sexp-list
-    ." Not implemented: parse-sexp-list" cr quit
+: skip-spaces ( c -- c )
+    begin dup is-blank while drop key repeat
 ;
 
-: parse-sexp ( -- sexp )
-    key
-    \ strip learding spaces
-    begin dup is-blank while drop key repeat
+defer parse-sexp
+
+: parse-sexp-list ( c -- c sexp )
+    skip-spaces
+    dup ')' = if drop key nil exit then
+    parse-sexp ( c car )
+    >r recurse r> ( c cdr car )
+    make-cons
+;
+
+:noname ( c -- c sexp )
+    skip-spaces
     case
-        '('  of parse-sexp-list endof
-        '\'' of recurse make-quote endof
-        '`'  of recurse make-quasiquote endof
-        ','  of recurse make-unquote endof
+        '('  of key parse-sexp-list endof
+        '\'' of key recurse make-quote endof
+        '`'  of key recurse make-quasiquote endof
+        ','  of key recurse make-unquote endof
         parse-atom dup unless parse-error then
     endcase
-;
+; is parse-sexp
 
 :noname
-    parse-sexp
-    .s
+    key parse-sexp swap drop
+    print-sexp
     quit
 ; execute
 
+(def x 0)
 
-abcd

@@ -2154,40 +2154,7 @@ end-struct file%
 ( === End of bootstrap of PlanckForth === )
 ( === Implementation of PlanckLISP === )
 
-: is-blank ( c -- bool )
-    case
-        bl   of true endof
-        '\t' of true endof
-        '\n' of true endof
-        drop false
-    endcase
-;
-
-: is-atom-char ( c -- bool )
-    case
-        '0' '9' rangeof true endof
-        'a' 'z' rangeof true endof
-        'A' 'Z' rangeof true endof
-        '+' of true endof
-        '-' of true endof
-        '*' of true endof
-        '/' of true endof
-        '<' of true endof
-        '>' of true endof
-        '=' of true endof
-        '?' of true endof
-        '!' of true endof
-        '_' of true endof
-        ':' of true endof
-        '$' of true endof
-        '%' of true endof
-        '&' of true endof
-        '^' of true endof
-        '~' of true endof
-        '@' of true endof
-        drop false
-    endcase
-;
+( === Nodes === )
 
 0 constant Node_Int
 1 constant Node_Symbol
@@ -2231,6 +2198,43 @@ Node_Nil make-tup0 constant nil
 : make-quote ( atom -- atom ) Node_Quote make-tup1 ;
 : make-quasiquote ( atom -- atom ) Node_Quasiquote make-tup1 ;
 : make-unquote ( atom -- atom ) Node_Unquote make-tup1 ;
+
+( === Parser and Printer === )
+
+: is-blank ( c -- bool )
+    case
+        bl   of true endof
+        '\t' of true endof
+        '\n' of true endof
+        drop false
+    endcase
+;
+
+: is-atom-char ( c -- bool )
+    case
+        '0' '9' rangeof true endof
+        'a' 'z' rangeof true endof
+        'A' 'Z' rangeof true endof
+        '+' of true endof
+        '-' of true endof
+        '*' of true endof
+        '/' of true endof
+        '<' of true endof
+        '>' of true endof
+        '=' of true endof
+        '?' of true endof
+        '!' of true endof
+        '_' of true endof
+        ':' of true endof
+        '$' of true endof
+        '%' of true endof
+        '&' of true endof
+        '^' of true endof
+        '~' of true endof
+        '@' of true endof
+        drop false
+    endcase
+;
 
 : print-sexp ( sexp -- )
     dup @ case
@@ -2301,6 +2305,28 @@ defer parse-sexp
     endcase
 ; is parse-sexp
 
+( === Eval === )
+variable varlist \ variable list
+
+defer eval-sexp
+defer eval-cons
+
+:noname ( sexp -- sexp )
+    dup @ case
+    Node_Int of ( do nothing ) endof
+    Node_Symbol of not-implemented endof
+    Node_Quote  of not-implemented endof
+    Node_Quasiquote of not-implemented endof
+    Node_Nil of ( do nothing ) endof
+    Node_Cons of eval-cons endof
+        not-reachable
+    endcase
+; is eval-sexp
+
+:noname ( sexp -- sexp )
+    not-implemented
+; is eval-cons
+
 \ 0x100000 constant MAX_PLISP_FILE_SIZE
 0x100000 constant MAX_PLISP_FILE_SIZE
 :noname
@@ -2316,7 +2342,7 @@ defer parse-sexp
         skip-spaces
         dup c@ unless ( EOF ) 0 quit then
         parse-sexp
-        swap print-sexp cr
+        swap eval-sexp print-sexp cr
     again
 ; execute
 

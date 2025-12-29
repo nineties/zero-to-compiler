@@ -483,41 +483,10 @@ alias-builtin runtime-info_ V
 : latest    &latest @ ;
 : >dfa >cfa cell + ;
 
-\ === Stub Functions ===
-\ Use 1-step indirect reference so that we can replace
-\ the runtime later.
-
-: allot-cell &here @ # cell + &here ! ;
-
-alias-builtin key-old   k
-
-allot-cell : &key  [ ' L , , ] ;
-allot-cell : &key! [ ' L , , ] ;
-
-: key   &key @ execute ;    \ ( -- c ) Push -1 at EOF
-' key-old &key !
-
-: key!  &key! @ execute ;   \ ( -- c ) Throw exception at EOF
-' key-old &key! !
-
-allot-cell : &word [ ' L , , ] ;
-: word  &word @ execute ;   \ ( "name" -- c-addr e )
-: stub-word W [ ' L , k 0 k 0 - , ] ;
-' stub-word &word !
-
-allot-cell : &word! [ ' L , , ] ;
-: word! &word! @ execute ;  \ ( "name" -- c-addr ) Throw exception at error
-' W &word! !
-
-allot-cell : &find [ ' L , , ] ;  \ ( c-addr -- nt|0 )
-allot-cell : &find! [ ' L , , ] ; \ ( c-addr -- nt ) Throw exception at error
-
-: find  &find @ execute ;
-: find! &find! @ execute ;
-' F &find !
-' F &find! !
-
-: ' word! find! >cfa ;
+alias-builtin key k
+: word W ;
+: find F ;
+: ' word find >cfa ;
 
 \ === Compilers ===
 
@@ -864,12 +833,13 @@ allot-cell : &find! [ ' L , , ] ; \ ( c-addr -- nt ) Throw exception at error
 : (
     1   \ depth counter
     begin ?dup while
-        key! case
+        key case
         '(' of 1+ endof \ increment depth
         ')' of 1- endof \ decrement depth
         endcase
     repeat
 ; immediate
+
 
 (
     Now we can use multiline comment with ( nests. )
@@ -896,7 +866,7 @@ allot-cell : &find! [ ' L , , ] ; \ ( c-addr -- nt ) Throw exception at error
     align
     latest ,                    \ fill link
     here cell- &latest !        \ update latest
-    word! dup strlen
+    word dup strlen
     dup c, memcpy, 0 c, align    \ fill length, name and \0
     docol ,                     \ compile docol
     ['] lit ,
@@ -942,7 +912,7 @@ allot-cell : &find! [ ' L , , ] ; \ ( c-addr -- nt ) Throw exception at error
 
 \ ( n "name" -- )
 : to
-    word! find! >cfa >body
+    word find >cfa >body
     state @ if
         [compile] literal
         compile !
@@ -951,78 +921,10 @@ allot-cell : &find! [ ' L , , ] ; \ ( c-addr -- nt ) Throw exception at error
     then
 ; immediate
 
-( === Throw and Catch === )
-
-\ 'xt catch' saves data stack pointer and a marker
-\ to indicate where to return on return stack
-\ then execute 'xt'.
-\ When 'n throw' is executed, the catch statement returns
-\ 'n'. If no throw is executed, returns 0.
-
-\ At the beginning of execution of 'xt', return stack
-\ contains following information.
-\ +-------------------------+
-\ | original return address |
-\ | saved stack pointer     |
-\ | exception marker        | <- top of return stack
-\ +-------------------------+
-\ If no 'throw' is called, after execution of 'xt'
-\ program goes to the exception-marker because it is
-\ on the top of return stack.
-\ The exception-marker drops 'saved stack pointer',
-\ push 0 to indicate no error and return to the
-\ 'original return address'.
-\ When 'n throw' is called, it scans return stack
-\ to find the exception-marker, restore return stack pointer
-\ and data stack pointer, push error code, and returns to
-\ the 'original return address'
-
-create exception-marker
-    ' rdrop ,   \ drop saved stack pointer
-    0 literal   \ push 0 to indicate no-error
-    ' exit ,
-
-: catch ( xt -- n )
-    sp@ cell+ >r            \ save stack pointer
-    exception-marker >r     \ push exception marker
-    execute
-;
-
-: success 0 ;
-
-: throw ( w -- )
-    ?dup unless exit then   \ do nothing if no error
-    rp@
-    begin
-        dup rp0 cell- <     \ rp < rp0
-    while
-        dup @               \ load return stack entry
-        exception-marker = if
-            rp!     \ restore return stack pointer
-            rdrop   \ drop exception marker
-
-            \ Reserve enough working space of data stack since
-            \ following code manipulates data stack pointer
-            \ and write value to data stack directly via
-            \ address.
-            dup dup dup dup
-
-            r>      \ original stack pointer
-            \ ( n sp )
-            cell-   \ allocate space for error code
-            tuck !  \ store error code of top of stack
-            sp!     \ restore data stack pointer
-            exit
-        then
-        cell+
-    repeat
-    drop
-;
-
 ( === Printing Numbers === )
 
 \ Skip reading spaces, read characters and returns first character
-: char      ( <spaces>ccc -- c ) word! c@ ;
+: char      ( <spaces>ccc -- c ) word c@ ;
 
 \ compile-time version of char
 : [char]    ( compile: <spaces>ccc -- ; runtime: --- c )
@@ -1333,14 +1235,9 @@ decimal \ set default to decimal
     repeat 2drop
 ;
 
-
 \ Allocate a buffer for string literal
 bl bl * constant s-buffer-size  \ 1024
 create s-buffer s-buffer-size allot
-
-\ Will define the error message corresponds to this error later
-\ because we can't write string literal yet.
-char 0 char B - constant STRING-OVERFLOW-ERROR \ -18
 
 \ Parse string delimited by "
 \ compile mode: the string is stored as operand of 'string' operator.
@@ -1350,8 +1247,8 @@ char 0 char B - constant STRING-OVERFLOW-ERROR \ -18
         compile litstring
         here 0 ,    \ save location of length and fill dummy
         0           \ length of the string + 1 (\0)
-        begin key! dup '"' <> while
-            dup '\\' = if drop key! escaped-char then
+        begin key dup '"' <> while
+            dup '\\' = if drop key escaped-char then
             c,      \ store character
             1+      \ increment length
         repeat drop
@@ -1361,11 +1258,8 @@ char 0 char B - constant STRING-OVERFLOW-ERROR \ -18
         align
     else
         s-buffer dup    \ save start address
-        begin key! dup '"' <> while
-            dup '\\' = if drop key! escaped-char then
-            over 3 pick - s-buffer-size 1- >= if
-                STRING-OVERFLOW-ERROR throw
-            then
+        begin key dup '"' <> while
+            dup '\\' = if drop key escaped-char then
             over c! \ store char
             1+      \ increment address
         repeat drop
@@ -1383,57 +1277,11 @@ char 0 char B - constant STRING-OVERFLOW-ERROR \ -18
     then
 ; immediate
 
-( === Error Code and Messages === )
-
-\ Single linked list of error code and messages.
-\ Thre structure of each entry:
-\ | link | code | message ... |
-variable error-list
-0 error-list !
-
-: error>next    ( a-addr -- a-addr) @ ;
-: error>message ( a-addr -- c-addr ) 2 cells + ;
-: error>code    ( a-addr -- n ) cell+ @ ;
-
-: add-error ( n c-addr -- )
-    error-list here
-    ( n c-addr )
-    over @ ,    \ fill link
-    swap !      \ update error-list
-    swap ,      \ fill error-code
-    strcpy,     \ fill message
-;
-
-: def-error ( n c-addr "name" -- )
-    create over ,
-    add-error
-    does> @
-;
-
-decimal
-STRING-OVERFLOW-ERROR s" Too long string literal" add-error
-
-variable next-user-error
-s" -256" >number drop next-user-error !
-
-\ Create new user defined error and returns error code.
-: exception ( c-addr -- n )
-    next-user-error @ swap add-error
-    next-user-error @
-    1 next-user-error -!
-;
-
 ( === 3rd Phase Interpreter === )
-
-s" -13" >number drop s" Undefined word" def-error UNDEFINED-WORD-ERROR
-:noname
-    find ?dup unless UNDEFINED-WORD-ERROR throw then
-; &find! !
-
 create word-buffer s" 64" >number drop cell+ allot
 
 : interpret
-    word!                   \ read name from input
+    word                   \ read name from input
     \ ( addr )
     dup word-buffer strcpy  \ save input
     dup find                \ lookup dictionary
@@ -1454,9 +1302,7 @@ create word-buffer s" 64" >number drop cell+ allot
             >cfa execute
         then
     else
-        >number unless
-            UNDEFINED-WORD-ERROR throw
-        then
+        >number drop
         \ Not found
         state @ if
             \ compile mode
@@ -1468,45 +1314,11 @@ create word-buffer s" 64" >number drop cell+ allot
 :noname
     rp0 rp! \ drop 2nd phase
     begin
-        ['] interpret catch
-        ?dup if
-            \ lookup error code
-            error-list @
-            begin ?dup while
-                \ ( error-code error-entry )
-                dup error>code
-                2 pick = if
-                    error>message type
-                    ." : "
-                    word-buffer type cr
-                    bye
-                then
-                error>next
-            repeat
-            ." Unknown error code: "
-            word-buffer type
-            ."  (" 0 .r ." )" cr
-            bye
-        then
+        interpret
     again
 ; execute
 
-( === Error-codes === )
-
 decimal
--1 s" Aborted" def-error ABORTED-ERROR
-
-: abort ABORTED-ERROR throw ;
-
-s" Not implemented" exception constant NOT-IMPLEMENTED
-: not-implemented NOT-IMPLEMENTED throw ;
-
-s" Not supported" exception constant NOT-SUPPORTED
-: not-supported NOT-SUPPORTED throw ;
-
-( 31 bytes )
-s" Not reachable here. may be a bug" exception constant NOT-REACHABLE
-: not-reachable NOT-REACHABLE throw ;
 
 ( === Do-loop === )
 
@@ -1688,10 +1500,10 @@ do-stack 16 cells + do-sp !
 ( === End of bootstrap of PlanckForth === )
 ( === Implementation of PlanckLISP === )
 
-:noname
-    begin
-        parse-sexp
-        eval-sexp
-        drop
-    again
-; execute
+\ :noname
+\    begin
+\        parse-sexp
+\        eval-sexp
+\        drop
+\    again
+\ ; execute

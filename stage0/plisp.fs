@@ -944,13 +944,6 @@ alias-builtin key k
 : cr    '\n' emit ;
 : space bl emit ;
 
-
-variable base   \ number base
-: decimal   10 base ! ;
-: hex       16 base ! ;
-
-decimal \ set default to decimal
-
 : '0' [char] 0 ;
 : '9' [char] 9 ;
 : 'a' [char] a ;
@@ -991,21 +984,21 @@ decimal \ set default to decimal
 ;
 
 \ Display unsigned integer followed by a space.
-: u. ( u -- ) base @ swap print-uint space ;
+: u. ( u -- ) 10 swap print-uint space ;
 
 \ Display n followed by a space.
-: . ( n -- ) base @ swap print-int space ;
+: . ( n -- ) 10 swap print-int space ;
 
 \ Display n as a signed decimal number followed by a space.
 : dec. ( n -- ) 10 swap print-int space ;
 
 \ Display u as an unsigned hex number prefixed with $
 \ and followed by a space.
-: hex. ( u -- ) '$' emit 16 swap print-uint space ;
+: hex. ( u -- ) '0' emit 'x' emit 16 swap print-uint space ;
 
-\ Number of characters of u in 'base'
+\ Number of characters of u in decimal
 : uwidth ( u -- u )
-    base @ /
+    10 /
     ?dup if recurse 1+ else 1 then
 ;
 
@@ -1016,7 +1009,7 @@ decimal \ set default to decimal
 \ Display unsigned integer u right aligned in n characters.
 : u.r ( u n -- )
     over uwidth
-    - spaces base @ swap print-uint
+    - spaces 10 swap print-uint
 ;
 
 \ Display signed integer n1 right aligned in n2 characters.
@@ -1028,7 +1021,7 @@ decimal \ set default to decimal
         dup uwidth 1+
         rot swap - spaces
         '-' emit
-        base @ swap print-uint
+        10 swap print-uint
     then
 ;
 
@@ -1147,7 +1140,7 @@ decimal \ set default to decimal
     endof
         \ default case
         \ ( addr base )
-        drop base @ swap parse-uint
+        drop 10 swap parse-uint
     endcase
 ;
 

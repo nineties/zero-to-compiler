@@ -1473,8 +1473,12 @@ do-stack 16 cells + do-sp !
     tuck 1 cells + !
 ;
 
-: make-int Node_Int make-tup1 ;
-: make-symbol     ." Not implemented: make-symbol" cr quit ;
+: make-int ( n -- atom ) Node_Int make-tup1 ;
+: make-symbol ( c-addr -- atom )
+    \ duplicate given string
+    dup strlen 1+ %allot tuck strcpy
+    Node_Symbol make-tup1
+;
 : make-quote      ." Not implemented: make-quote" cr quit ;
 : make-quasiquote ." Not implemented: make-quasiquote" cr quit ;
 : make-unquote    ." Not implemented: make-unquote" cr quit ;

@@ -2156,6 +2156,15 @@ end-struct file%
 
 ( === Nodes === )
 
+struct
+    cell% field node>type
+    cell% field node>arg0
+    cell% field node>arg1
+    cell% field node>arg2
+    cell% field node>arg3
+    cell% field node>arg4
+end-struct node%
+
 0 constant Node_Int
 1 constant Node_Symbol
 2 constant Node_Quote
@@ -2164,40 +2173,40 @@ end-struct file%
 5 constant Node_Nil
 6 constant Node_Cons
 
-: make-tup0 ( type -- value )
+: make-node0 ( type -- node )
     1 cells allocate throw
-    tuck !
+    tuck node>type !
 ;
 
-: make-tup1 ( arg0 type -- value )
-    2 cells allocate throw ( arg0 type ptr )
-    tuck !
-    tuck 1 cells + !
+: make-node1 ( arg0 type -- value )
+    2 cells allocate throw
+    tuck node>type !
+    tuck node>arg0 !
 ;
 
-: make-tup3 ( arg1 arg0 type -- value )
-    3 cells allocate throw ( arg1 arg0 type ptr )
-    tuck !
-    tuck 1 cells + !
-    tuck 2 cells + !
+: make-node3 ( arg1 arg0 type -- value )
+    3 cells allocate throw
+    tuck node>type !
+    tuck node>arg0 !
+    tuck node>arg1 !
 ;
 
-Node_Nil make-tup0 constant nil
+Node_Nil make-node0 constant nil
 : make-cons ( cdr car -- cons )
-    Node_Cons make-tup3
+    Node_Cons make-node3
 ;
-: car ( cons -- car ) 1 cells + @ ;
-: cdr ( cons -- cdr ) 2 cells + @ ;
+: car ( cons -- car ) node>arg0 @ ;
+: cdr ( cons -- cdr ) node>arg1 @ ;
 
-: make-int ( n -- atom ) Node_Int make-tup1 ;
+: make-int ( n -- atom ) Node_Int make-node1 ;
 : make-symbol ( c-addr -- atom )
     \ duplicate given string
     dup strlen 1+ allocate throw tuck strcpy
-    Node_Symbol make-tup1
+    Node_Symbol make-node1
 ;
-: make-quote ( atom -- atom ) Node_Quote make-tup1 ;
-: make-quasiquote ( atom -- atom ) Node_Quasiquote make-tup1 ;
-: make-unquote ( atom -- atom ) Node_Unquote make-tup1 ;
+: make-quote ( atom -- atom ) Node_Quote make-node1 ;
+: make-quasiquote ( atom -- atom ) Node_Quasiquote make-node1 ;
+: make-unquote ( atom -- atom ) Node_Unquote make-node1 ;
 
 ( === Parser and Printer === )
 
@@ -2238,11 +2247,11 @@ Node_Nil make-tup0 constant nil
 
 : print-sexp ( sexp -- )
     dup @ case
-    Node_Int of 1 cells + @ 10 swap print-int endof
-    Node_Symbol of 1 cells + @ type endof
-    Node_Quote of '\'' emit 1 cells + @ recurse endof
-    Node_Quasiquote of '`' emit 1 cells + @ recurse endof
-    Node_Unquote of ',' emit 1 cells + @ recurse endof
+    Node_Int of node>arg0 @ 10 swap print-int endof
+    Node_Symbol of node>arg0 @ type endof
+    Node_Quote of '\'' emit node>arg0 @ recurse endof
+    Node_Quasiquote of '`' emit node>arg0 @ recurse endof
+    Node_Unquote of ',' emit node>arg0 @ recurse endof
     Node_Nil of drop ." ()" endof
     Node_Cons of 
         '(' emit

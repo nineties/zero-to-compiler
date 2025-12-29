@@ -2260,56 +2260,49 @@ Node_Nil make-tup0 constant nil
 : parse-str ." Not implemented: parse-str" cr quit ;
 : parse-char ." Not implemented: parse-char" cr quit ;
 
-\ Allocate a buffer for atom tokens
 create tokbuf 1024 allot
 
-: parse-atom ( c -- c sexp )
-    case
-        '"'  of parse-str endof
-        '\'' of parse-char endof
-        \ read characters to tokbuf
-        tokbuf tuck c! 1+
-        begin key dup is-atom-char while
-            over c! 1+
-        repeat swap
-        0 swap c! \ null
-        tokbuf >number if
-            make-int
-        else
-            drop tokbuf make-symbol
-        then
+: parse-atom ( c-addr -- sexp c-addr )
+    dup c@ case
+        '"'  of 1+ parse-str endof
+        '\'' of 1+ parse-char endof
+        drop tokbuf ( from to )
+        begin over c@ is-atom-char while
+            over c@ over c!
+            1+ swap 1+ swap
+        repeat
+        0 swap c!
+        tokbuf >number if make-int else drop tokbuf make-symbol then
+        swap
     endcase
 ;
 
-: skip-spaces ( c -- c )
-    begin dup is-blank while drop key repeat
+: skip-spaces ( c-addr -- c-addr )
+    begin dup c@ is-blank while 1+ repeat
 ;
 
 defer parse-sexp
 
-: parse-sexp-list ( c -- c sexp )
+: parse-sexp-list ( c-addr -- sexp c-addr )
     skip-spaces
-    dup ')' = if drop key nil exit then
-    parse-sexp ( c car )
-    >r recurse r> ( c cdr car )
-    make-cons
+    dup c@ ')' = if 1+ nil swap exit then
+    parse-sexp ( car c-addr )
+    recurse    ( car cdr c-addr )
+    >r swap make-cons r>
 ;
 
-:noname ( c -- c sexp )
+:noname ( c-addr -- sexp c-addr )
     skip-spaces
-    case
-        '('  of key parse-sexp-list endof
-        '\'' of key recurse make-quote endof
-        '`'  of key recurse make-quasiquote endof
-        ','  of key recurse make-unquote endof
-        parse-atom dup unless parse-error then
+    dup c@ case
+        '('  of 1+ parse-sexp-list endof
+        '\'' of 1+ recurse make-quote endof
+        '`'  of 1+ recurse make-quasiquote endof
+        ','  of 1+ recurse make-unquote endof
+        drop parse-atom over unless parse-error then
     endcase
 ; is parse-sexp
 
-:noname
-    key parse-sexp swap drop
-    print-sexp
-    quit
-; execute
 
-(def x 0)
+s"     (def x 0)" parse-sexp
+drop print-sexp
+0 quit

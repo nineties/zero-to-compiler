@@ -925,6 +925,74 @@ alias-builtin key k
     then
 ; immediate
 
+( === Throw and Catch === )
+
+\ 'xt catch' saves data stack pointer and a marker
+\ to indicate where to return on return stack
+\ then execute 'xt'.
+\ When 'n throw' is executed, the catch statement returns
+\ 'n'. If no throw is executed, returns 0.
+
+\ At the beginning of execution of 'xt', return stack
+\ contains following information.
+\ +-------------------------+
+\ | original return address |
+\ | saved stack pointer     |
+\ | exception marker        | <- top of return stack
+\ +-------------------------+
+\ If no 'throw' is called, after execution of 'xt'
+\ program goes to the exception-marker because it is
+\ on the top of return stack.
+\ The exception-marker drops 'saved stack pointer',
+\ push 0 to indicate no error and return to the
+\ 'original return address'.
+\ When 'n throw' is called, it scans return stack
+\ to find the exception-marker, restore return stack pointer
+\ and data stack pointer, push error code, and returns to
+\ the 'original return address'
+
+create exception-marker
+    ' rdrop ,   \ drop saved stack pointer
+    0 literal   \ push 0 to indicate no-error
+    ' exit ,
+
+: catch ( xt -- n )
+    sp@ cell+ >r            \ save stack pointer
+    exception-marker >r     \ push exception marker
+    execute
+;
+
+: success 0 ;
+
+: throw ( w -- )
+    ?dup unless exit then   \ do nothing if no error
+    rp@
+    begin
+        dup rp0 cell- <     \ rp < rp0
+    while
+        dup @               \ load return stack entry
+        exception-marker = if
+            rp!     \ restore return stack pointer
+            rdrop   \ drop exception marker
+
+            \ Reserve enough working space of data stack since
+            \ following code manipulates data stack pointer
+            \ and write value to data stack directly via
+            \ address.
+            dup dup dup dup
+
+            r>      \ original stack pointer
+            \ ( n sp )
+            cell-   \ allocate space for error code
+            tuck !  \ store error code of top of stack
+            sp!     \ restore data stack pointer
+            exit
+        then
+        cell+
+    repeat
+    drop
+;
+
 ( === Printing Numbers === )
 
 \ Skip reading spaces, read characters and returns first character
@@ -1214,6 +1282,10 @@ alias-builtin key k
 bl bl * constant s-buffer-size  \ 1024
 create s-buffer s-buffer-size allot
 
+\ Will define the error message corresponds to this error later
+\ because we can't write string literal yet.
+char 0 char B - constant STRING-OVERFLOW-ERROR \ -18
+
 \ Parse string delimited by "
 \ compile mode: the string is stored as operand of 'string' operator.
 \ immediate mode: the string is stored to temporary buffer.
@@ -1252,7 +1324,47 @@ create s-buffer s-buffer-size allot
     then
 ; immediate
 
+( === Error Code and Messages === )
+
+\ Single linked list of error code and messages.
+\ Thre structure of each entry:
+\ | link | code | message ... |
+variable error-list
+0 error-list !
+
+: error>next    ( a-addr -- a-addr) @ ;
+: error>message ( a-addr -- c-addr ) 2 cells + ;
+: error>code    ( a-addr -- n ) cell+ @ ;
+
+: add-error ( n c-addr -- )
+    error-list here
+    ( n c-addr )
+    over @ ,    \ fill link
+    swap !      \ update error-list
+    swap ,      \ fill error-code
+    strcpy,     \ fill message
+;
+
+: def-error ( n c-addr "name" -- )
+    create over ,
+    add-error
+    does> @
+;
+
+STRING-OVERFLOW-ERROR s" Too long string literal" add-error
+
+variable next-user-error
+s" -256" >number drop next-user-error !
+
+\ Create new user defined error and returns error code.
+: exception ( c-addr -- n )
+    next-user-error @ swap add-error
+    next-user-error @
+    1 next-user-error -!
+;
+
 ( === 3rd Phase Interpreter === )
+s" -13" >number drop s" Undefined word" def-error UNDEFINED-WORD-ERROR
 create word-buffer s" 64" >number drop cell+ allot
 
 : interpret
@@ -1277,7 +1389,8 @@ create word-buffer s" 64" >number drop cell+ allot
             >cfa execute
         then
     else
-        >number drop
+        >number unless UNDEFINED-WORD-ERROR throw
+        then
         \ Not found
         state @ if
             \ compile mode
@@ -1287,13 +1400,30 @@ create word-buffer s" 64" >number drop cell+ allot
 ;
 
 :noname
-    rp0 rp! \ drop 2nd phase
+    rp0 rp! \ drop 2nd stage
     begin
-        interpret
+        ['] interpret catch
+        ?dup if
+            \ lookup error code
+            error-list @
+            begin ?dup while
+                \ ( error-code error-entry )
+                dup error>code
+                2 pick = if
+                    error>message type
+                    ." : "
+                    word-buffer type cr
+                    bye
+                then
+                error>next
+            repeat
+            ." Unknown error code: "
+            word-buffer type
+            ."  (" 0 .r ." )" cr
+            bye
+        then
     again
 ; execute
-
-decimal
 
 ( === Do-loop === )
 
@@ -1444,6 +1574,7 @@ do-stack 16 cells + do-sp !
 ;
 
 
+
 ( === End of bootstrap of PlanckForth === )
 ( === Implementation of PlanckLISP === )
 
@@ -1558,8 +1689,8 @@ create tokbuf 1024 allot
 
 : parse-atom ( c -- c sexp )
     case
-        '"'  of parse-string-literal endof
-        '\'' of parse-character-literal endof
+        '"'  of parse-str endof
+        '\'' of parse-char endof
         \ read characters to tokbuf
         tokbuf tuck c! 1+
         begin key dup is-atom-char while
@@ -1606,4 +1737,3 @@ defer parse-sexp
 ; execute
 
 (def x 0)
-

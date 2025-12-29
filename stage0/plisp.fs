@@ -947,18 +947,19 @@ alias-builtin key k
 : '0' [char] 0 ;
 : '9' [char] 9 ;
 : 'a' [char] a ;
-: 'x' [char] x ;
 : 'z' [char] z ;
 : 'A' [char] A ;
 : 'Z' [char] Z ;
+: 'b' [char] b ;
+: 'B' [char] B ;
+: 'o' [char] o ;
+: 'O' [char] O ;
+: 'x' [char] x ;
+: 'X' [char] X ;
+: '+' [char] + ;
 : '-' [char] - ;
-: '&' [char] & ;
-: '#' [char] # ;
-: '%' [char] % ;
-: '$' [char] $ ;
 : '\'' [char] ' ;
 : '\\' [char] \ ;
-: 'a'  [char] a ;
 : 'b'  [char] b ;
 : 't'  [char] t ;
 : 'n'  [char] n ;
@@ -1091,55 +1092,33 @@ alias-builtin key k
 \ This function interprets prefixes that specifies number base.
 : >number ( c-addr -- n f )
     dup c@ unless
-        drop
-        0 false
-        exit
+        \ null string
+        drop 0 false exit
     then
     dup c@ case
-    '-' of
-        1+
-        recurse if
-            negate true
-        else
-            false
-        then
-    endof
-    '&' of 1+ 10 swap parse-int endof
-    '#' of 1+ 10 swap parse-int endof
-    '$' of 1+ 16 swap parse-int endof
-    '%' of 1+ 2 swap parse-int endof
-    '0' of
-        \ hexadecimal
-        \ ( addr )
-        1+
-        dup c@ unless
-            drop 0 true exit
-        then
-        dup c@ 'x' = if
-            1+ 16 swap parse-uint exit
-        then
-        drop 0 false exit
-    endof
-    '\'' of
-        \ character code
-        \ ( addr )
-        1+
-        dup c@ unless
-            drop 0 false exit
-        then
-        dup c@ '\\' = if
-            1+ dup c@ escaped-char swap 1+
-        else
-            dup c@ swap 1+
-        then
-        c@ case
-        0 of true exit endof
-        '\'' of true exit endof
-            drop 0 false
-        endcase
-    endof
-        \ default case
-        \ ( addr base )
+        '+' of 1+ recurse endof
+        '-' of 1+ recurse if negate true else false then endof
+        '0' of
+            1+ dup c@ case
+                'b' of 1+ 2 swap parse-uint endof
+                'B' of 1+ 2 swap parse-uint endof
+                'o' of 1+ 8 swap parse-uint endof
+                'O' of 1+ 8 swap parse-uint endof
+                'x' of 1+ 16 swap parse-uint endof
+                'X' of 1+ 16 swap parse-uint endof
+                drop
+                1- 8 swap parse-uint endof
+            endcase
+        endof
+        '\'' of \ character code
+            1+ dup c@ unless drop 0 false exit then
+            dup c@ '\\' = if
+                1+ dup c@ escaped-char swap 1+
+            else
+                dup c@ swap 1+
+            then
+            c@ '\'' = if true else drop 0 false then
+        endof
         drop 10 swap parse-uint
     endcase
 ;

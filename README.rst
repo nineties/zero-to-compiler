@@ -1,4 +1,4 @@
-Zero To Compiler Project
+Machine Code to Compiler
 ========================
 
 Overview

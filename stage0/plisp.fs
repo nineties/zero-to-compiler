@@ -1685,4 +1685,13 @@ do-stack 16 cells + do-sp !
     does> @ +
 ;
 
-( === End of bootstrap === )
+( === End of bootstrap of PlanckForth === )
+( === Implementation of PlanckLISP === )
+
+:noname
+    begin
+        parse-sexp
+        eval-sexp
+        drop
+    again
+; execute

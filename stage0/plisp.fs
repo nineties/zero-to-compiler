@@ -1573,6 +1573,62 @@ do-stack 16 cells + do-sp !
     word find >cfa >body !
 ;
 
+( === Command-line Arguments === )
+
+variable argc
+variable argv
+v argc ! argv !
+
+: arg ( u -- c-addr )
+    dup argc @ < if
+        cells argv @ + @
+    else
+        drop 0
+    then
+;
+
+\ Remove 1 arg, update argv and argc
+: shift-args ( -- )
+    argc @ 1 = if exit then
+    argc @ 1 do
+        i 1+ arg            \ argv[i+1]
+        i cells argv @ +    \ &argv[i]
+        !                   \ copy argv[i+1] to argv[i]
+    loop
+    1 argc -!
+;
+
+\ Take 1 arg and shift arguments
+: next-arg ( -- c-addr )
+    argc @ 1 = if 0 exit then
+    1 arg
+    shift-args
+;
+
+( === Error-codes === )
+
+-1 s" Aborted" def-error ABORTED-ERROR
+-37 s" File I/O exception" def-error FILE-IO-ERROR
+-39 s" Unexpected end of file" def-error UNEXPECTED-EOF-ERROR
+-59 s" ALLOCATE" def-error ALLOCATE-ERROR
+-62 s" CLOSE-FILE" def-error CLOSE-FILE-ERROR
+-68 s" FLUSH-FILE" def-error FLUSH-FILE-ERROR
+-69 s" OPEN-FILE" def-error OPEN-FILE-ERROR
+-70 s" READ-FILE" def-error READ-FILE-ERROR
+-71 s" READ-LINE" def-error READ-LINE-ERROR
+-75 s" WRITE-FILE" def-error WRITE-FILE-ERROR
+
+: abort ABORTED-ERROR throw ;
+
+s" Not implemented" exception constant NOT-IMPLEMENTED
+: not-implemented NOT-IMPLEMENTED throw ;
+
+s" Not supported" exception constant NOT-SUPPORTED
+: not-supported NOT-SUPPORTED throw ;
+
+( 31 bytes )
+s" Not reachable here. may be a bug" exception constant NOT-REACHABLE
+: not-reachable NOT-REACHABLE throw ;
 
 
 ( === End of bootstrap of PlanckForth === )

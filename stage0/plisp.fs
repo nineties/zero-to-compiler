@@ -2252,6 +2252,7 @@ variable symlist
 s" var" make-symbol constant Svar
 s" set" make-symbol constant Sset
 s" if" make-symbol constant Sif
+s" do" make-symbol constant Sdo
 
 ( === Parser and Printer === )
 
@@ -2402,13 +2403,13 @@ defer eval-qquote
     dup @ case
     Nint of ( do nothing ) endof
     Nsymbol of
-        ( env sexp )
-        over >r
+        2dup
+        ( env sym env sym )
         env-find ?dup unless
             ." undefined variable: " sym>name type cr
             1 quit
         then
-        r> swap
+        nip
     endof
     Nquote  of node>arg0 @ endof
     Nqquote of node>arg0 @ 0 eval-qquote endof
@@ -2447,11 +2448,20 @@ defer eval-qquote
             ( env args env' )
             swap cadr eval-sexp
             ( env env' val )
-            rot drop
+            nip \ returns outer env
         else
             swap caddr eval-sexp
-            rot drop
+            nip \ returns outer env
         then
+    endof
+    Sdo of \ (do e0 e1 ...)
+        cdr over swap ( env env args )
+        begin dup nil <> while
+            dup >r
+            car eval-sexp drop r> cdr
+        repeat
+        ( env env' nil )
+        nip \ returns outer env
     endof
     ( default case )
         not-implemented

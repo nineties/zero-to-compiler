@@ -2188,29 +2188,43 @@ end-struct node%
 4 constant Nunquote
 5 constant Nnil
 6 constant Ncons
+7 constant Nlambda
 
 : make-node0 ( type -- node )
     1 cells allocate throw
     tuck node>type !
 ;
 
-: make-node1 ( arg0 type -- value )
+: make-node1 ( arg0 type -- node )
     2 cells allocate throw
     tuck node>type !
     tuck node>arg0 !
 ;
 
-: make-node3 ( arg1 arg0 type -- value )
+: make-node2 ( arg1 arg0 type -- node )
     3 cells allocate throw
     tuck node>type !
     tuck node>arg0 !
     tuck node>arg1 !
 ;
 
+: make-node3 ( arg2 arg1 arg0 type -- node )
+    4 cells allocate throw
+    tuck node>type !
+    tuck node>arg0 !
+    tuck node>arg1 !
+    tuck node>arg2 !
+;
+
 Nnil make-node0 constant nil
 : make-cons ( cdr car -- cons )
-    Ncons make-node3
+    Ncons make-node2
 ;
+
+: make-lambda ( body params env -- node )
+    Nlambda make-node3
+;
+
 : car ( node -- node ) node>arg0 @ ;
 : cdr ( node -- node ) node>arg1 @ ;
 : caar car car ;
@@ -2253,6 +2267,7 @@ s" var" make-symbol constant Svar
 s" set" make-symbol constant Sset
 s" if" make-symbol constant Sif
 s" do" make-symbol constant Sdo
+s" lambda" make-symbol constant Slambda
 
 ( === Parser and Printer === )
 
@@ -2308,6 +2323,15 @@ s" do" make-symbol constant Sdo
             dup car recurse cdr
         repeat drop
         ')' emit
+    endof
+    Nlambda of
+        ." (lambda "
+        dup node>arg1 @ recurse
+        bl emit
+        node>arg2 @ recurse
+        ')' emit
+    endof
+        not-reachable
     endcase
 ;
 
@@ -2462,6 +2486,13 @@ defer eval-qquote
         repeat
         ( env env' nil )
         nip \ returns outer env
+    endof
+    Slambda of \ (lambda params body)
+        ( env node )
+        cdr over >r
+        dup cadr swap car r>
+        ( env body params env)
+        make-lambda
     endof
     ( default case )
         not-implemented

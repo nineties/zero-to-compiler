@@ -2154,36 +2154,20 @@ end-struct file%
 ( === End of bootstrap of PlanckForth === )
 ( === Implementation of PlanckLISP === )
 
-( === Assoc List === )
-\ map from string to ptr
+( === Single Linked List === )
 struct
-    cell% field list>key
     cell% field list>val
     cell% field list>next
 end-struct list%
 
-: assoc-push ( k v list -- new-list )
+: list-push ( v list -- new-list )
     list% %allocate throw
     tuck list>next !
     tuck list>val !
-    tuck list>key !
 ;
 
-: assoc-push! ( k v list -- )
-    dup >r @ assoc-push r> !
-;
-
-\ returns the value and true if found. returns 0 and false if not.
-: assoc-find ( k list -- v f )
-    dup unless
-        2drop 0 false 
-    else
-        over over list>key @ streq if
-            list>val @ nip true
-        else
-            list>next @ recurse
-        then
-    then
+: list-push! ( v list -- )
+    dup >r @ list-push r> !
 ;
 
 ( === Nodes === )
@@ -2236,13 +2220,16 @@ variable symlist
 0 symlist !
 
 : make-symbol ( c-addr -- atom )
-    dup symlist @ assoc-find if nip exit then
-    drop
+    \ lookup existing symbols
+    symlist @ begin dup while
+        over over list>val @ node>arg0 @ streq if list>val @ nip exit then
+        list>next @
+    repeat drop
 
     \ duplicate given string
     dup strlen 1+ allocate throw tuck strcpy
-    dup Nsymbol make-node1
-    tuck symlist assoc-push!
+    Nsymbol make-node1
+    dup symlist list-push!
 ;
 
 : make-quote ( atom -- atom ) Nquote make-node1 ;

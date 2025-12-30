@@ -2249,6 +2249,7 @@ variable symlist
 
 ( === Builtin Symbols === )
 s" var" make-symbol constant Svar
+s" set" make-symbol constant Sset
 
 ( === Parser and Printer === )
 
@@ -2382,6 +2383,17 @@ end-struct env%
     2drop 0
 ;
 
+: env-update ( sym node -- )
+    swap env @ begin dup while
+        over over env>sym @ = if
+            ( node sym env )
+            nip env>value ! exit
+        then
+        env>next @
+    repeat
+    ." variable " sym>name type ." is not found" cr 1 quit
+;
+
 defer eval-sexp
 defer eval-cons
 defer eval-qquote
@@ -2413,6 +2425,14 @@ defer eval-unquote
         dup car dup sym? unless ." malformed 'var' expr" cr 1 quit then
         swap cadr eval-sexp
         env-push
+        nil
+    endof
+    Sset of \ (set sym sexp): update the variable
+        dup cons-len 3 <> if ." malformed 'set' expr" cr 1 quit then
+        cdr
+        dup car dup sym? unless ." malformed 'set' expr" cr 1 quit then
+        swap cadr eval-sexp
+        env-update
         nil
     endof
     ( default case )

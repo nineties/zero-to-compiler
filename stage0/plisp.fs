@@ -2425,28 +2425,26 @@ defer eval-unquote
     dup node>type @ case
     Nint of r> drop endof
     Nsymbol of r> drop endof
-    Nquote of
-        dup node>arg0 @ r> recurse
-        ( node arg' 1 )
-        over node>arg0 @ over = if drop else nip make-quote then
-    endof
-    Nqquote of
-        dup node>arg0 @ r> 1+ recurse
-        ( node arg' 1 )
-        over node>arg0 @ over = if drop else nip make-qquote then
-    endof
+    Nquote of node>arg0 @ r> recurse make-quote endof
+    Nqquote of node>arg0 @ r> 1+ recurse make-qquote endof
     Nunquote of
-        .s
         \ eval arg if level = 0
         r> ?dup unless
             node>arg0 @ eval-sexp
         else
-            >r dup node>arg0 @ r> 1- recurse
-            ( node arg' 1 )
-            over node>arg0 @ over = if drop else nip make-unquote then
+            >r node>arg0 @ r> 1- recurse make-unquote
         then
     endof
-    not-implemented
+    Nnil of r> drop endof
+    Ncons of
+        ( cons R: nest )
+        dup car r> dup >r eval-qquote
+        ( cons car' R: nest )
+        swap cdr r> eval-qquote
+        ( car' cdr' )
+        swap make-cons
+    endof
+    not-reachable
     endcase
 ; is eval-qquote
 

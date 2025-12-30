@@ -2197,13 +2197,13 @@ struct
     cell% field node>arg4
 end-struct node%
 
-0 constant Node_Int
-1 constant Node_Symbol
-2 constant Node_Quote
-3 constant Node_Quasiquote
-4 constant Node_Unquote
-5 constant Node_Nil
-6 constant Node_Cons
+0 constant Nint
+1 constant Nsymbol
+2 constant Nquote
+3 constant Nqquote
+4 constant Nunquote
+5 constant Nnil
+6 constant Ncons
 
 : make-node0 ( type -- node )
     1 cells allocate throw
@@ -2223,14 +2223,14 @@ end-struct node%
     tuck node>arg1 !
 ;
 
-Node_Nil make-node0 constant nil
+Nnil make-node0 constant nil
 : make-cons ( cdr car -- cons )
-    Node_Cons make-node3
+    Ncons make-node3
 ;
 : car ( cons -- car ) node>arg0 @ ;
 : cdr ( cons -- cdr ) node>arg1 @ ;
 
-: make-int ( n -- atom ) Node_Int make-node1 ;
+: make-int ( n -- atom ) Nint make-node1 ;
 
 variable symlist
 0 symlist !
@@ -2241,13 +2241,13 @@ variable symlist
 
     \ duplicate given string
     dup strlen 1+ allocate throw tuck strcpy
-    dup Node_Symbol make-node1
+    dup Nsymbol make-node1
     tuck symlist assoc-push!
 ;
 
-: make-quote ( atom -- atom ) Node_Quote make-node1 ;
-: make-quasiquote ( atom -- atom ) Node_Quasiquote make-node1 ;
-: make-unquote ( atom -- atom ) Node_Unquote make-node1 ;
+: make-quote ( atom -- atom ) Nquote make-node1 ;
+: make-quasiquote ( atom -- atom ) Nqquote make-node1 ;
+: make-unquote ( atom -- atom ) Nunquote make-node1 ;
 
 ( === Parser and Printer === )
 
@@ -2288,13 +2288,13 @@ variable symlist
 
 : print-sexp ( sexp -- )
     dup @ case
-    Node_Int of node>arg0 @ 10 swap print-int endof
-    Node_Symbol of node>arg0 @ type endof
-    Node_Quote of '\'' emit node>arg0 @ recurse endof
-    Node_Quasiquote of '`' emit node>arg0 @ recurse endof
-    Node_Unquote of ',' emit node>arg0 @ recurse endof
-    Node_Nil of drop ." ()" endof
-    Node_Cons of 
+    Nint of node>arg0 @ 10 swap print-int endof
+    Nsymbol of node>arg0 @ type endof
+    Nquote of '\'' emit node>arg0 @ recurse endof
+    Nqquote of '`' emit node>arg0 @ recurse endof
+    Nunquote of ',' emit node>arg0 @ recurse endof
+    Nnil of drop ." ()" endof
+    Ncons of 
         '(' emit
         dup car recurse
         cdr
@@ -2363,12 +2363,12 @@ defer eval-cons
 
 :noname ( sexp -- sexp )
     dup @ case
-    Node_Int of ( do nothing ) endof
-    Node_Symbol of not-implemented endof
-    Node_Quote  of not-implemented endof
-    Node_Quasiquote of not-implemented endof
-    Node_Nil of ( do nothing ) endof
-    Node_Cons of eval-cons endof
+    Nint of ( do nothing ) endof
+    Nsymbol of not-implemented endof
+    Nquote  of not-implemented endof
+    Nqquote of not-implemented endof
+    Nnil of ( do nothing ) endof
+    Ncons of eval-cons endof
         not-reachable
     endcase
 ; is eval-sexp

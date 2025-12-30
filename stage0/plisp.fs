@@ -2349,9 +2349,9 @@ defer parse-sexp
     skip-spaces
     dup c@ case
         '('  of 1+ parse-sexp-list endof
-        '\'' of 1+ recurse make-quote endof
-        '`'  of 1+ recurse make-quasiquote endof
-        ','  of 1+ recurse make-unquote endof
+        '\'' of 1+ recurse swap make-quote swap endof
+        '`'  of 1+ recurse swap make-quasiquote swap endof
+        ','  of 1+ recurse swap make-unquote swap endof
         drop parse-atom over unless parse-error then
     endcase
 ; is parse-sexp

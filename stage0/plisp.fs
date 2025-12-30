@@ -2217,6 +2217,7 @@ Nnil make-node0 constant nil
 : cadr cdr car ;
 : cdar car cdr ;
 : cddr cdr cdr ; 
+: caddr cdr cdr car ;
 : cons-len ( cons -- int )
     dup nil = if drop 0 else cdr recurse 1+ then
 ;
@@ -2250,6 +2251,7 @@ variable symlist
 ( === Builtin Symbols === )
 s" var" make-symbol constant Svar
 s" set" make-symbol constant Sset
+s" if" make-symbol constant Sif
 
 ( === Parser and Printer === )
 
@@ -2436,6 +2438,20 @@ defer eval-qquote
         >r cadr eval-sexp r>
         ( env val sym )
         2 pick >r env-update r> nil
+    endof
+    Sif of \ (if condition ifthen ifelse)
+        dup cons-len 4 <> if ." malformed 'if' expr" cr 1 quit then
+        cdr
+        ( env args )
+        2dup car eval-sexp nil <> if
+            ( env args env' )
+            swap cadr eval-sexp
+            ( env env' val )
+            rot drop
+        else
+            swap caddr eval-sexp
+            rot drop
+        then
     endof
     ( default case )
         not-implemented

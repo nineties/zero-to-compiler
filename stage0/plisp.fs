@@ -2263,7 +2263,7 @@ variable symlist
 : sym>name node>arg0 @ ; 
 
 ( === Builtin Symbols === )
-s" var" make-symbol constant Svar
+s" def" make-symbol constant Sdef
 s" set" make-symbol constant Sset
 s" if" make-symbol constant Sif
 s" do" make-symbol constant Sdo
@@ -2522,10 +2522,10 @@ defer eval-qquote
 
 :noname ( env sexp -- env sexp )
     dup car case
-    Svar of \ (var sym sexp): define new variable
-        dup cons-len 3 <> if ." malformed 'var' expr" cr 1 quit then
+    Sdef of \ (def sym sexp): define new variable
+        dup cons-len 3 <> if ." malformed 'def' expr" cr 1 quit then
         cdr
-        dup car dup sym? unless ." malformed 'var' expr" cr 1 quit then
+        dup car dup sym? unless ." malformed 'def' expr" cr 1 quit then
         ( env args sym )
         >r cadr eval-sexp r>
         ( env val sym )

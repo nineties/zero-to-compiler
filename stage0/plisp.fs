@@ -2475,6 +2475,7 @@ s" prim:rshift"  :noname to-int swap to-int rshift make-int ; add-prim
 s" prim:arshift" :noname to-int swap to-int arshift make-int ; add-prim
 s" prim:car" :noname car ; add-prim
 s" prim:cdr" :noname cdr ; add-prim
+s" prim:print" :noname print-sexp nil ; add-prim
 
 defer eval-sexp
 defer eval-cons
@@ -2683,14 +2684,14 @@ defer eval-qquote
         skip-spaces-and-comments
         dup c@ unless ( EOF ) drop r> exit then
         parse-sexp swap
-        r> swap eval-sexp print-sexp cr >r
+        r> swap eval-sexp drop >r
     again
 ;
 
 :noname
     root-env @
 
-    s" init.l" eval-file
+    s" init.lisp" eval-file
     argc @ 1 <= if ." no input file" cr 1 quit then
     1 arg eval-file
 

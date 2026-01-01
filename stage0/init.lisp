@@ -18,6 +18,7 @@
 
 (def car prim:car)
 (def cdr prim:cdr)
+(def print prim:print)
 
 (def cadr (lambda (x) (car (cdr x))))
 (def caddr (lambda (x) (car (cdr (cdr x)))))

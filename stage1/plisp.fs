@@ -63,7 +63,10 @@ l!
 \ ')' ( a b -- c )      c = a >> b (logical)
 \ '%' ( a b -- c )      c = a >> b (arithmetic)
 \ 'v' ( -- a-addr u )   argv and argc
-\ 'V' ( -- c-addr )     Runtime information string
+\ 'O' ( c-addr fam -- fd )  open file
+\ 'q' ( fd -- )             close file
+\ 'w' ( c-addr n fd -- n )  write to file
+\ 'Z' ( c-addr n fd -- n )  read from file
 
 \ The 1st phase interpreter repeats execution of k, f and x.
 \ The following line is an example program of planckforth
@@ -365,6 +368,7 @@ c [ i , ' L , k 0 k 0 - , ' M , ' ! , ' e , l !
 \ Set immediate-bit of [
 l @ C + # { ? k @ k @ + | } $
 
+
 \ ] ( -- )
 \ Switch to compile mode
 c ] i , ' L , k 1 k 0 - , ' M , ' ! , ' e , l !
@@ -465,7 +469,10 @@ alias-builtin u<        u
 alias-builtin lshift    (
 alias-builtin rshift    )
 alias-builtin arshift   %
-alias-builtin runtime-info_ V
+alias-builtin open      O
+alias-builtin close     q
+alias-builtin write     w
+alias-builtin read      Z
 
 : bye [ ' L , k 0 k 0 - , ] quit ;
 
@@ -1647,165 +1654,12 @@ v argc ! argv !
 
 ( === Error-codes === )
 
--1 s" Aborted" def-error ABORTED-ERROR
--37 s" File I/O exception" def-error FILE-IO-ERROR
--39 s" Unexpected end of file" def-error UNEXPECTED-EOF-ERROR
--59 s" ALLOCATE" def-error ALLOCATE-ERROR
--62 s" CLOSE-FILE" def-error CLOSE-FILE-ERROR
--68 s" FLUSH-FILE" def-error FLUSH-FILE-ERROR
--69 s" OPEN-FILE" def-error OPEN-FILE-ERROR
--70 s" READ-FILE" def-error READ-FILE-ERROR
--71 s" READ-LINE" def-error READ-LINE-ERROR
--75 s" WRITE-FILE" def-error WRITE-FILE-ERROR
-
-: abort ABORTED-ERROR throw ;
-
 s" Not implemented" exception constant NOT-IMPLEMENTED
 : not-implemented NOT-IMPLEMENTED throw ;
-
-s" Not supported" exception constant NOT-SUPPORTED
-: not-supported NOT-SUPPORTED throw ;
 
 ( 31 bytes )
 s" Not reachable here. may be a bug" exception constant NOT-REACHABLE
 : not-reachable NOT-REACHABLE throw ;
-
-( === System Calls === )
-
-0b000 constant eax immediate
-0b001 constant ecx immediate
-0b010 constant edx immediate
-0b011 constant ebx immediate
-0b100 constant esp immediate
-0b101 constant ebp immediate
-0b110 constant esi immediate
-0b111 constant edi immediate
-
-: mod-reg-r/m ( mod reg r/m -- u )
-    0
-    swap 0x7 and or
-    swap 0x7 and 8 * or
-    swap 0x3 and 64 * or
-;
-
-: scale-index-byte ( scale index byte -- u )
-    0
-    swap 0x7 and or
-    swap 0x7 and 8 * or
-    swap 0x3 and 64 * or
-;
-
-\ compile 'pop reg' and 'push reg'
-: pop ( reg -- ) 0x58 + c, ; immediate
-: push ( reg -- ) 0x50 + c, ; immediate
-
-\ lodsl; jmp *(%eax);
-: next ( -- ) 0xad c, 0xff c, 0x20 c, ; immediate
-: int80 ( -- ) 0xcd c, 0x80 c, ; immediate
-
-\ movl disp(reg1), reg2
-: movmr ( disp reg1 reg2 -- )
-    0x8b c, \ opcode
-    swap dup 0b100 = if \ if reg1=esp
-        \ ( disp reg2 reg1 )
-        0b01 -rot mod-reg-r/m c,
-        0b00 0b100 0b100 scale-index-byte c,
-    else
-        \ ( disp reg2 reg1 )
-        0b01 -rot mod-reg-r/m c,
-    then
-    c, \ displacement
-; immediate
-
-\ overwrite code field by DFA
-: ;asm
-    [compile] ; \ finish compilation
-    latest dup >dfa swap >cfa !
-; immediate
-
-: syscall0 ( n -- e )
-    eax pop
-    int80
-    eax push
-    next
-;asm
-
-: syscall1 ( arg1 n -- e )
-    eax pop
-    ebx pop
-    int80
-    eax push
-    next
-;asm
-
-: syscall2 ( arg2 arg1 n -- e )
-    eax pop
-    ebx pop
-    ecx pop
-    int80
-    eax push
-    next
-;asm
-
-: syscall3 ( arg3 arg2 arg1 n -- e )
-    eax pop
-    ebx pop
-    ecx pop
-    edx pop
-    int80
-    eax push
-    next
-;asm
-
-: syscall4 ( arg4 arg3 arg2 arg1 n -- e )
-    eax pop
-    ebx pop
-    ecx pop
-    edx pop
-    esi push            \ save program counter ( arg4 esi )
-    [ 4 ] esp esi movmr     \ movl 4(%esp), %esi
-    int80
-    esi pop             \ restore esi
-    ebx pop
-    eax push
-    next
-;asm
-
-: syscall5 ( arg5 arg4 arg3 arg2 arg1 n -- e )
-    eax pop
-    ebx pop
-    ecx pop
-    edx pop
-    esi push            \ save esi ( arg5 arg4 esi )
-    [ 4 ] esp esi movmr
-    [ 8 ] esp edi movmr
-    int80
-    esi pop
-    ebx pop
-    ebx pop
-    eax push
-    next
-;asm
-
-: syscall6 ( arg6 arg5 arg4 arg3 arg2 arg1 n -- e )
-    eax pop
-    ebx pop
-    ecx pop
-    edx pop
-    esi push
-    ebp push    \ ( arg6 arg5 arg4 esi ebp )
-    [ 8 ] esp esi movmr
-    [ 12 ] esp edi movmr
-    [ 16 ] esp ebp movmr
-    int80
-    ebp pop
-    esi pop
-    ebx pop
-    ebx pop
-    ebx pop
-    eax push
-    next
-;asm
 
 \ Allocate u bytes of user memory
 : allocate ( u -- addr )
@@ -1818,38 +1672,14 @@ s" Not reachable here. may be a bug" exception constant NOT-REACHABLE
     swap 1- tuck + swap invert and
 ;
 
-( === File I/O === )
-
--1 constant EOF
-
 \ file access methods (fam)
 0x000 constant R/O  \ read-only
 0x241 constant W/O  \ write-only
 0x242 constant R/W  \ read-write
 
-3 constant SYS-READ
-4 constant SYS-WRITE
-5 constant SYS-OPEN
-6 constant SYS-CLOSE
-
-: (open) ( c-addr fam -- fd )
-    0b110100100 -rot swap SYS-OPEN syscall3
-;
-
-: (close) ( obj -- n )
-    SYS-CLOSE syscall1
-;
-
-: (read) ( c-addr u fd -- n )
-    >r swap r> SYS-READ syscall3
-;
-
-: (write) ( c-addr u1 fd -- n )
-    >r swap r>              \ ( u1 u1 c-addr fd )
-    SYS-WRITE syscall3      \ ( u2 )
-;
-
 ( === End of bootstrap of PlanckForth === )
+
+
 ( === Implementation of PlanckLISP === )
 
 ( === Single Linked List === )
@@ -2404,11 +2234,11 @@ defer eval-qquote
 
 0x100000 constant MAX_PLISP_FILE_SIZE
 : eval-file ( env c-str -- env' )
-    R/O (open) dup >r >r
+    R/O open dup >r >r
     MAX_PLISP_FILE_SIZE dup allocate tuck ( env mem size mem R: fd fd )
-    swap r> (read)
+    swap r> read
     MAX_PLISP_FILE_SIZE >= if ." too large file" cr 1 quit then
-    r> (close) drop
+    r> close
     ( env c-addr )
     swap >r
     begin

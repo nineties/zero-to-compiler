@@ -2441,6 +2441,16 @@ end-struct env%
     2drop 0
 ;
 
+: print-env ( env -- )
+    '{' emit
+    begin dup while
+        dup env>sym @ sym>name type ."  : "
+        dup env>value @ print-sexp
+        env>next @ dup if ." , " then
+    repeat drop
+    '}' emit cr
+;
+
 variable root-env
 
 \ add primitive function
@@ -2463,6 +2473,8 @@ s" prim:equal"   :noname to-int swap to-int = if Strue else nil then ; add-prim
 s" prim:lshift"  :noname to-int swap to-int lshift make-int ; add-prim
 s" prim:rshift"  :noname to-int swap to-int rshift make-int ; add-prim
 s" prim:arshift" :noname to-int swap to-int arshift make-int ; add-prim
+s" prim:car" :noname car ; add-prim
+s" prim:cdr" :noname cdr ; add-prim
 
 defer eval-sexp
 defer eval-cons
@@ -2501,14 +2513,13 @@ defer eval-qquote
 ;
 
 : apply ( env args fn -- env value )
-    rot drop \ outer env is not used
-    ( args fn )
+    ( outer-env args fn )
     dup node>arg2 @ >r
     dup node>arg1 @ >r
     node>arg0 @
-    ( args env R: body params )
+    ( outer-env args env R: body params )
     swap r> swap
-    ( env params args ; R: body )
+    ( outer-env env params args ; R: body )
     \ bind args to params
     over sym? if
         env-push
@@ -2530,8 +2541,10 @@ defer eval-qquote
     then
     r>
 
-    ( env' body )
+    ( outer-env env' body )
     eval-sexp
+    ( outer-env env' value )
+    nip
 ;
 
 : flatten-args ( args -- argn-1 ... arg0 )
@@ -2670,7 +2683,7 @@ defer eval-qquote
         skip-spaces-and-comments
         dup c@ unless ( EOF ) drop r> exit then
         parse-sexp swap
-        r> swap eval-sexp print-sexp cr >r
+        r> swap eval-sexp print-sexp cr dup print-env >r
     again
 ;
 

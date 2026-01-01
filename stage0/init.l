@@ -15,3 +15,17 @@
 (def << prim:lshift)
 (def >> prim:rshift)
 (def asr prim:arshift)
+
+(def car prim:car)
+(def cdr prim:cdr)
+
+(def cadr (lambda (x) (car (cdr x))))
+(def caddr (lambda (x) (car (cdr (cdr x)))))
+
+(def defmacro (macro args
+    `(def ,(car args) (macro ,(cadr args) ,(caddr args)))
+    ))
+
+(defmacro when (cond body)
+    `(if ,cond ,body ())
+    )

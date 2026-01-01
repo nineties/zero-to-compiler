@@ -2492,8 +2492,10 @@ s" prim:equal"   :noname to-int swap to-int = if Strue else nil then ; add-prim
 s" prim:lshift"  :noname to-int swap to-int lshift make-int ; add-prim
 s" prim:rshift"  :noname to-int swap to-int rshift make-int ; add-prim
 s" prim:arshift" :noname to-int swap to-int arshift make-int ; add-prim
+s" prim:cons" :noname make-cons ; add-prim
 s" prim:car" :noname car ; add-prim
 s" prim:cdr" :noname cdr ; add-prim
+s" prim:nil_p" :noname nil = if Strue else nil then ; add-prim
 s" prim:print" :noname print-sexp nil ; add-prim
 
 defer eval-sexp

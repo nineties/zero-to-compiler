@@ -1159,6 +1159,23 @@ create exception-marker
     endcase
 ;
 
+: unescaped-char ( n -- n )
+    case
+    0 of '0' endof
+    7 of 'a' endof
+    8 of 'b' endof
+    9 of 't' endof
+    10 of 'n' endof
+    11 of 'v' endof
+    12 of 'f' endof
+    13 of 'r' endof
+    [char] ' of [char] ' endof
+    [char] " of [char] " endof
+    '\\' of '\\' endof
+    drop -1
+    endcase
+;
+
 \ Parse string as number.
 \ This function interprets prefixes that specifies number base.
 : >number ( c-addr -- n f )
@@ -1850,10 +1867,20 @@ s" unquote" make-symbol constant Sunquote
     endcase
 ;
 
+: print-str ( c-addr -- )
+    begin dup c@ while
+        dup c@ unescaped-char dup 0< if
+            drop dup c@ emit 1+
+        else
+            '\\' emit emit 1+
+        then
+    repeat drop
+;
+
 : print-sexp ( sexp -- )
     dup @ case
     Nint of to-int 10 swap print-int endof
-    Nstr of to-str type endof
+    Nstr of '"' emit to-str print-str '"' emit endof
     Nsymbol of sym>name type endof
     Nnil of drop ." ()" endof
     Ncons of 
@@ -2033,7 +2060,8 @@ s" cons" :noname make-cons ; add-prim
 s" car"  :noname car ; add-prim
 s" cdr"  :noname cdr ; add-prim
 s" nil?" :noname nil = if Strue else nil then ; add-prim
-s" print" :noname print-sexp nil ; add-prim
+s" print" :noname print-sexp cr nil ; add-prim
+s" type"  :noname to-str type nil ; add-prim
 s" parse" :noname ( str -- sexp str )
     skip-spaces-and-comments
     dup c@ unless nil

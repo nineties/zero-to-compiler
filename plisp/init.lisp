@@ -48,8 +48,7 @@
     ))
 
 ; # Utility Functions
-(define println (x) (do (print x) (print "\n")))
-
+(define puts (s) (do (type s) (type "\n")))
 (define not (x) (= x ()))
 (define > (a b) (< b a))
 (define <= (a b) (not (> a b)))

@@ -2010,33 +2010,33 @@ variable root-env
     root-env @ -rot env-push root-env !
 ;
 
-s" prim:add"    :noname to-int swap to-int + make-int ; add-prim
-s" prim:sub"    :noname to-int swap to-int - make-int ; add-prim
-s" prim:mul"    :noname to-int swap to-int * make-int ; add-prim
-s" prim:div"    :noname to-int swap to-int / make-int ; add-prim
-s" prim:mod"    :noname to-int swap to-int % make-int ; add-prim
-s" prim:and"    :noname to-int swap to-int & make-int ; add-prim
-s" prim:or"     :noname to-int swap to-int | make-int ; add-prim
-s" prim:xor"    :noname to-int swap to-int ^ make-int ; add-prim
-s" prim:less"    :noname to-int swap to-int < if Strue else nil then ; add-prim
-s" prim:uless"   :noname to-int swap to-int u if Strue else nil then ; add-prim
-s" prim:equal"   :noname to-int swap to-int = if Strue else nil then ; add-prim
-s" prim:lshift"  :noname to-int swap to-int lshift make-int ; add-prim
-s" prim:rshift"  :noname to-int swap to-int rshift make-int ; add-prim
-s" prim:arshift" :noname to-int swap to-int arshift make-int ; add-prim
-s" prim:cons" :noname make-cons ; add-prim
-s" prim:car" :noname car ; add-prim
-s" prim:cdr" :noname cdr ; add-prim
-s" prim:nil_p" :noname nil = if Strue else nil then ; add-prim
-s" prim:print" :noname print-sexp nil ; add-prim
-s" prim:parse" :noname ( str -- sexp str )
+s" +"   :noname to-int swap to-int + make-int ; add-prim
+s" -"   :noname to-int swap to-int - make-int ; add-prim
+s" *"   :noname to-int swap to-int * make-int ; add-prim
+s" /"   :noname to-int swap to-int / make-int ; add-prim
+s" %"   :noname to-int swap to-int % make-int ; add-prim
+s" &"   :noname to-int swap to-int & make-int ; add-prim
+s" |"   :noname to-int swap to-int | make-int ; add-prim
+s" ^"   :noname to-int swap to-int ^ make-int ; add-prim
+s" <"   :noname to-int swap to-int < if Strue else nil then ; add-prim
+s" u<"  :noname to-int swap to-int u if Strue else nil then ; add-prim
+s" ="   :noname to-int swap to-int = if Strue else nil then ; add-prim
+s" <<"  :noname to-int swap to-int lshift make-int ; add-prim
+s" >>"  :noname to-int swap to-int rshift make-int ; add-prim
+s" asr" :noname to-int swap to-int arshift make-int ; add-prim
+s" cons" :noname make-cons ; add-prim
+s" car"  :noname car ; add-prim
+s" cdr"  :noname cdr ; add-prim
+s" nil?" :noname nil = if Strue else nil then ; add-prim
+s" print" :noname print-sexp nil ; add-prim
+s" parse" :noname ( str -- sexp str )
     skip-spaces-and-comments
     dup c@ unless nil
         else
     to-str parse-sexp make-str nil swap make-cons swap make-cons
     then
 ; add-prim
-s" prim:eval" :noname ( env sexp -- env sexp ) eval-sexp ; add-prim
+s" eval" :noname ( env sexp -- env sexp ) eval-sexp ; add-prim
 
 :noname ( env sexp -- env sexp )
     dup @ case

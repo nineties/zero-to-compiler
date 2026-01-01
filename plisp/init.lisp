@@ -1,31 +1,6 @@
 ; init script for plancklisp
 ; Copyright (C) 2026 nineties
 
-; # Primitive Functions
-(def + prim:add)
-(def - prim:sub)
-(def * prim:mul)
-(def / prim:div)
-(def % prim:mod)
-(def & prim:and)
-(def | prim:or)
-(def ^ prim:xor)
-(def < prim:less)
-(def u< prim:uless)
-(def = prim:equal)
-(def << prim:lshift)
-(def >> prim:rshift)
-(def asr prim:arshift)
-
-(def cons prim:cons)
-(def car prim:car)
-(def cdr prim:cdr)
-(def nil? prim:nil_p)
-
-(def print prim:print)
-(def parse prim:parse)
-(def eval prim:eval)
-
 (def caar (lambda (x) (car (car x))))
 (def cadr (lambda (x) (car (cdr x))))
 (def cdar (lambda (x) (cdr (car x))))

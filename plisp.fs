@@ -1712,14 +1712,11 @@ end-struct node%
 0 constant Nint
 1 constant Nsymbol
 2 constant Nstr
-3 constant Nquote
-4 constant Nqquote
-5 constant Nunquote
-6 constant Nnil
-7 constant Ncons
-8 constant Nlambda
-9 constant Nmacro
-10 constant Nprim
+3 constant Nnil
+4 constant Ncons
+5 constant Nlambda
+6 constant Nmacro
+7 constant Nprim
 
 : make-node0 ( type -- node )
     1 cells allocate
@@ -1751,6 +1748,9 @@ Nnil make-node0 constant nil
 : make-cons ( cdr car -- cons )
     Ncons make-node2
 ;
+
+: make-list1 ( e -- list ) nil swap make-cons ;
+: make-list2 ( e2 e1 -- list ) >r make-list1 r> make-cons ;
 
 : make-lambda ( body params env -- node ) Nlambda make-node3 ;
 : make-macro ( body params env -- node ) Nmacro make-node3 ;
@@ -1791,10 +1791,6 @@ variable symlist
     dup symlist list-push!
 ;
 
-: make-quote ( atom -- atom ) Nquote make-node1 ;
-: make-qquote ( atom -- atom ) Nqquote make-node1 ;
-: make-unquote ( atom -- atom ) Nunquote make-node1 ;
-
 : int? node>type @ Nint = ;
 : sym? node>type @ Nsymbol = ;
 : sym>name node>arg0 @ ; 
@@ -1808,6 +1804,13 @@ s" while" make-symbol constant Swhile
 s" do" make-symbol constant Sdo
 s" lambda" make-symbol constant Slambda
 s" macro" make-symbol constant Smacro
+s" quote" make-symbol constant Squote
+s" quasiquote" make-symbol constant Squasiquote
+s" unquote" make-symbol constant Sunquote
+
+: make-quote ( atom -- atom ) Squote make-list2 ;
+: make-qquote ( atom -- atom ) Squasiquote make-list2 ;
+: make-unquote ( atom -- atom ) Sunquote make-list2 ;
 
 ( === Parser and Printer === )
 
@@ -1852,19 +1855,21 @@ s" macro" make-symbol constant Smacro
     Nint of to-int 10 swap print-int endof
     Nstr of to-str type endof
     Nsymbol of sym>name type endof
-    Nquote of '\'' emit node>arg0 @ recurse endof
-    Nqquote of '`' emit node>arg0 @ recurse endof
-    Nunquote of ',' emit node>arg0 @ recurse endof
     Nnil of drop ." ()" endof
     Ncons of 
-        '(' emit
-        dup car recurse
-        cdr
-        begin dup nil <> while 
-            bl emit
-            dup car recurse cdr
-        repeat drop
-        ')' emit
+        dup car case
+            Squote of '\'' emit cadr recurse endof
+            Squasiquote of '`' emit cadr recurse endof
+            Sunquote of ',' emit cadr recurse endof
+            '(' emit
+            recurse
+            cdr
+            begin dup nil <> while
+                bl emit
+                dup car recurse cdr
+            repeat drop
+            ')' emit
+        endcase
     endof
     Nlambda of
         ." (lambda "
@@ -2051,8 +2056,6 @@ s" eval" :noname ( env sexp -- env sexp ) eval-sexp ; add-prim
         then
         nip
     endof
-    Nquote  of node>arg0 @ endof
-    Nqquote of node>arg0 @ 0 eval-qquote endof
     Nnil of ( do nothing ) endof
     Ncons of eval-cons endof
     Nlambda of endof
@@ -2185,6 +2188,9 @@ s" eval" :noname ( env sexp -- env sexp ) eval-sexp ; add-prim
         ( env body params env)
         make-macro
     endof
+    Squote of cadr endof
+    Squasiquote of cadr 0 eval-qquote endof
+    Sunquote of ." unquote outside quasiquote" cr 1 quit endof
         ( env sexp car )
         >r over r> eval-sexp nip
         ( env sexp fn )
@@ -2213,28 +2219,31 @@ s" eval" :noname ( env sexp -- env sexp ) eval-sexp ; add-prim
     Nint of r> drop endof
     Nstr of r> drop endof
     Nsymbol of r> drop endof
-    Nquote of node>arg0 @ r> recurse make-quote endof
-    Nqquote of node>arg0 @ r> 1+ recurse make-qquote endof
-    Nunquote of
-        \ eval arg if level = 0
-        r> ?dup unless
-            node>arg0 @ eval-sexp
-        else
-            >r node>arg0 @ r> 1- recurse make-unquote
-        then
-    endof
     Nnil of r> drop endof
     Ncons of
-        tuck ( cons env cons ; R: nest )
-        car r> dup >r eval-qquote
-        ( cons env' car' ; R: nest )
-        -rot swap cdr r>
-        ( car' env' cdr nest )
-        eval-qquote
-        ( car' env' cdr' )
-        rot
-        ( env' cdr' car' )
-        make-cons
+        ( env cons ; R: nest )
+        dup car case
+            Squote of cadr r> recurse make-quote endof
+            Squasiquote of cadr r> 1+ recurse make-qquote endof
+            Sunquote of
+                \ eval arg if level = 0
+                r> ?dup unless
+                    cadr eval-sexp
+                else
+                    >r cadr r> 1- recurse make-unquote
+                then
+            endof
+            drop tuck ( cons env cons ; R: nest )
+            car r> dup >r eval-qquote
+            ( cons env' car' ; R: nest )
+            -rot swap cdr r>
+            ( car' env' cdr nest )
+            eval-qquote
+            ( car' env' cdr' )
+            rot
+            ( env' cdr' car' )
+            make-cons
+        endcase
     endof
     not-reachable
     endcase

@@ -1901,7 +1901,7 @@ create strbuf 1024 allot
             dup >r c@ over c! 1+ r> 1+
         then
     repeat
-    1+ >r 1+ 0 swap c! strbuf strdup make-str r>
+    1+ >r 0 swap c! strbuf strdup make-str r>
 ;
 
 create tokbuf 1024 allot
@@ -2025,6 +2025,13 @@ s" prim:car" :noname car ; add-prim
 s" prim:cdr" :noname cdr ; add-prim
 s" prim:nil_p" :noname nil = if Strue else nil then ; add-prim
 s" prim:print" :noname print-sexp nil ; add-prim
+s" prim:parse" :noname ( str -- sexp str )
+    skip-spaces-and-comments
+    dup c@ unless nil
+        else
+    to-str parse-sexp make-str nil swap make-cons swap make-cons
+    then
+; add-prim
 
 defer eval-sexp
 defer eval-cons

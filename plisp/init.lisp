@@ -24,6 +24,7 @@
 
 (def print prim:print)
 (def parse prim:parse)
+(def eval prim:eval)
 
 (def caar (lambda (x) (car (car x))))
 (def cadr (lambda (x) (car (cdr x))))

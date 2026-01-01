@@ -1998,6 +1998,10 @@ end-struct env%
     '}' emit cr
 ;
 
+defer eval-sexp
+defer eval-cons
+defer eval-qquote
+
 variable root-env
 
 \ add primitive function
@@ -2032,10 +2036,7 @@ s" prim:parse" :noname ( str -- sexp str )
     to-str parse-sexp make-str nil swap make-cons swap make-cons
     then
 ; add-prim
-
-defer eval-sexp
-defer eval-cons
-defer eval-qquote
+s" prim:eval" :noname ( env sexp -- env sexp ) eval-sexp ; add-prim
 
 :noname ( env sexp -- env sexp )
     dup @ case

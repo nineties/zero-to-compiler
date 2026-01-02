@@ -1935,16 +1935,14 @@ defer equal-sexp
     endcase
 ;
 
-: parse-error
-    ." Parse Error" cr 1 quit
-;
+s" -15" >number drop s" Parse error" def-error PARSE-ERROR
 
 create strbuf 1024 allot
 : parse-str ( c-addr -- node c-addr )
     strbuf swap ( buf str )
     begin dup c@ '"' <> while
         dup c@ '\\' = if
-            1+ dup >r c@ escaped-char dup 0< if ." invalid escaped char" cr 1 quit then
+            1+ dup >r c@ escaped-char dup 0< if PARSE-ERROR throw then
             over c!
             1+ r> 1+
         else
@@ -1986,6 +1984,7 @@ defer parse-sexp
 
 : parse-sexp-list ( c-addr -- sexp c-addr )
     skip-spaces-and-comments
+    dup c@ unless PARSE-ERROR throw then
     dup c@ ')' = if 1+ nil swap exit then
     parse-sexp ( car c-addr )
     recurse    ( car cdr c-addr )
@@ -1999,7 +1998,7 @@ defer parse-sexp
         '\'' of 1+ recurse swap make-quote swap endof
         '`'  of 1+ recurse swap make-qquote swap endof
         ','  of 1+ recurse swap make-unquote swap endof
-        drop parse-atom over unless parse-error then
+        drop parse-atom over unless PARSE-ERROR throw then
     endcase
 ; is parse-sexp
 
@@ -2081,10 +2080,15 @@ s" nil?" :noname nil = if Strue else nil then ; add-prim
 s" print" :noname print-sexp nil ; add-prim
 s" type"  :noname to-str type nil ; add-prim
 s" parse" :noname ( str -- sexp str )
-    skip-spaces-and-comments
-    dup c@ unless nil
+    to-str skip-spaces-and-comments
+    dup c@ unless
+        nil
+    else
+        ['] parse-sexp catch unless
+            skip-spaces-and-comments make-str nil swap make-cons swap make-cons
         else
-    to-str parse-sexp make-str nil swap make-cons swap make-cons
+            drop nil
+        then
     then
 ; add-prim
 s" eval" :noname ( env sexp -- env sexp ) eval-sexp ; add-prim

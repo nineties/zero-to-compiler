@@ -42,7 +42,13 @@
 (expect-true (= '(1 2 3) '(1 2 3)))
 (expect-nil  (= '(1 2 3) '(1 2 4)))
 
+; parser for S-expression
+; returns s-expr and remaining string
 (expect (parse "(+ 1 2 3)abc") '((+ 1 2 3) "abc"))
+; skip leading spaces and eliminates following spaces
+(expect (parse "    (+ 1 2 3)   ") '((+ 1 2 3) ""))
+; returns () for broken s-expr
+(expect (parse "(+ 1 2") ())
 
 (expect '(1 2 ,(+ 1 2)) '(1 2 ,(+ 1 2)))
 (expect `(1 2 ,(+ 1 2)) '(1 2 3))

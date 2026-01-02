@@ -2094,13 +2094,25 @@ s" parse" :noname ( str -- sexp str )
 s" eval" :noname ( env sexp -- env sexp ) eval-sexp ; add-prim
 
 0x100000 constant MAX_PLISP_FILE_SIZE
-: read-file ( path -- c-str )
+: read-file ( path -- c-str nbytes )
     R/O open dup >r >r
     MAX_PLISP_FILE_SIZE dup allocate tuck ( mem size mem R: fd fd )
     swap r> read
-    MAX_PLISP_FILE_SIZE >= if ." too large file" cr 1 quit then
+    dup MAX_PLISP_FILE_SIZE >= if ." too large file" cr 1 quit then
     r> close
 ;
+
+s" read-file" :noname ( path -- (nbytes data) )
+    to-str read-file make-int swap make-str swap make-list2
+; add-prim
+
+s" write-file" :noname ( nbytes data path -- nbytes )
+    to-str W/O open dup >r >r
+    ( nbytes data R: fd fd )
+    to-str dup swap to-int r> write
+    r> close
+    make-int
+; add-prim
 
 :noname ( env sexp -- env sexp )
     dup @ case
@@ -2309,7 +2321,7 @@ s" eval" :noname ( env sexp -- env sexp ) eval-sexp ; add-prim
 ; is eval-qquote
 
 : eval-file ( env c-str -- env' )
-    read-file swap >r
+    read-file drop swap >r
     begin
         skip-spaces-and-comments
         dup c@ unless ( EOF ) drop r> exit then

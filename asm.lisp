@@ -2,4 +2,4 @@
 ; Copyright (C) 2026 nineties
 
 (import "asm/core.lisp")
-(print x)
+(print (commandline-args))

@@ -1651,24 +1651,6 @@ v argc ! argv !
     then
 ;
 
-\ Remove 1 arg, update argv and argc
-: shift-args ( -- )
-    argc @ 1 = if exit then
-    argc @ 1 do
-        i 1+ arg            \ argv[i+1]
-        i cells argv @ +    \ &argv[i]
-        !                   \ copy argv[i+1] to argv[i]
-    loop
-    1 argc -!
-;
-
-\ Take 1 arg and shift arguments
-: next-arg ( -- c-addr )
-    argc @ 1 = if 0 exit then
-    1 arg
-    shift-args
-;
-
 ( === Error-codes === )
 
 s" Not implemented" exception constant NOT-IMPLEMENTED
@@ -2093,8 +2075,13 @@ s" parse" :noname ( str -- sexp )
 ; add-prim
 s" eval" :noname ( env sexp -- env sexp ) eval-sexp ; add-prim
 s" exit" :noname ( int -- ) to-int quit ; add-prim
-
 s" fresh-sym" :noname 0 Nsymbol make-node1 ; add-prim
+s" commandline-args" :noname
+    nil
+    argc @ 0 do
+        argc @ i - 1- arg make-str make-cons
+    loop
+; add-prim
 
 0x100000 constant MAX_PLISP_FILE_SIZE
 : read-file ( path -- c-str nbytes )

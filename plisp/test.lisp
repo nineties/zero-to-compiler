@@ -26,6 +26,8 @@
 
 (expect-true (nil? ()))
 (expect-nil (nil? '(1 2 3)))
+(expect-true (cons? '(1 2 3)))
+(expect-nil (cons? ()))
 (expect (cons 0 ()) '(0))
 (expect (car '(1 2)) 1)
 (expect (cdr '(1 2)) '(2))

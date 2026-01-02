@@ -36,16 +36,6 @@
     `(if ,cond ,body ())
     )
 
-(defmacro for (x ls body) (do
-    (def v (fresh-sym))
-    `(with-scope (do
-        (def ,v ,ls)
-        (while (not (nil? ,v)) (do
-            (def ,x (car ,v))
-            ,body
-            (set ,v (cdr ,v))
-        ))))))
-
 ; (cond
 ;   (condition0 body0)
 ;   (condition1 body1)
@@ -60,6 +50,16 @@
             ))
         (f pairs)
     ))
+
+(defmacro for (x ls body) (do
+    (def v (fresh-sym))
+    `(with-scope (do
+        (def ,v ,ls)
+        (while (not (nil? ,v)) (do
+            (def ,x (car ,v))
+            ,body
+            (set ,v (cdr ,v))
+        ))))))
 
 ; # Utility Functions
 (define println (e) (do (print e) (type "\n")))

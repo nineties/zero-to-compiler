@@ -62,4 +62,4 @@
 
 ; === End of Tests ===
 
-(print passed) (type " passed, ") (print (+ passed failed)) (type " total\n")
+(type "Tests passed ") (print passed) (type "/") (print (+ passed failed)) (type "\n")

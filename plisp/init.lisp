@@ -99,11 +99,16 @@
       (true             (cons (car r) (parse-sexp-list (cadr r))))
     )))
 
+(define read-sexp-list (path) (do
+    (def r (read-file path))
+    (when (< (car r) 0) (abort "file not found"))
+    (map (lambda (e) `(eval ',e)) (parse-sexp-list (cadr r)))
+    ))
+
 ; # Import
 (def imported-paths ())
 (defmacro import (path) (when (not (member? path imported-paths)) (do
         (set imported-paths (cons path imported-paths))
-        (def r (read-file path))
-        (when (< (car r) 0) (abort "file not found"))
-        (cons 'do (map (lambda (e) `(eval ',e)) (parse-sexp-list (cadr r))))
+        (def es (read-sexp-list path))
+        (cons 'do (map (lambda (e) `(eval ',e)) es))
         )))

@@ -4,7 +4,7 @@
 
 (section data)
 (label msg
-    (.ascii "Hello World!\n")
+    (ascii "Hello World!\n")
     )
 
 (def len (- here msg))

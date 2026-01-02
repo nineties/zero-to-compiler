@@ -122,10 +122,13 @@
 (define parse-sexp-list (str) (do
     (def r (parse str))
     (cond
-      ((= 'error r)     'error)
-      ((nil? r)         ())
-      (true             (cons (car r) (parse-sexp-list (cadr r))))
-    )))
+      ((= 'error r) 'error)
+      ((nil? r)     ())
+      (true         (do
+            (def s (parse-sexp-list (cadr r)))
+            (if (= s 'error) 'error (cons (car r) s))
+            ))
+      )))
 
 (define read-sexp-list (path) (do
     (defvar (size data) (read-file path))

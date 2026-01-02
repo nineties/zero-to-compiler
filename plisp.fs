@@ -1941,6 +1941,7 @@ create tokbuf 1024 allot
     dup c@ case
         '"'  of 1+ parse-str endof
         drop tokbuf ( from to )
+        over c@ is-atom-char unless PARSE-ERROR throw then
         begin over c@ is-atom-char while
             over c@ over c!
             1+ swap 1+ swap

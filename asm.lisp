@@ -5,5 +5,9 @@
 
 (def args (commandline-args))
 (when (< (length args) 3) (abort "no input file"))
-(def source (nth 2 args))
-(puts source)
+(def sourcefile (nth 2 args))
+
+(def asm-code (read-sexp-list sourcefile))
+(when (= asm-code 'error) (abort "parse error"))
+
+(print asm-code)

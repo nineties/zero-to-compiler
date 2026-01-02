@@ -90,6 +90,8 @@
 (defmacro %= (x v) `(set ,x (% ,x ,v)))
 
 (define abort (msg) (do (puts msg) (exit 1)))
+(define not-implemented () (abort "not implemented"))
+(define not-reachable () (abort "not reachable"))
 
 ; # List Functions
 (define list args args)

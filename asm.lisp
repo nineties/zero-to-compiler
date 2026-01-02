@@ -10,4 +10,4 @@
 (def asm-code (read-sexp-list sourcefile))
 (when (= asm-code 'error) (abort "parse error"))
 
-(print asm-code)
+(def data (assemble asm-code))

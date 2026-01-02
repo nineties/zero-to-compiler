@@ -120,9 +120,9 @@
     )))
 
 (define read-sexp-list (path) (do
-    (def r (read-file path))
-    (when (< (car r) 0) (abort "file not found"))
-    (map (lambda (e) `(eval ',e)) (parse-sexp-list (cadr r)))
+    (defvar (size data) (read-file path))
+    (when (< size 0) (abort "file not found"))
+    (map (lambda (e) `(eval ',e)) (parse-sexp-list data))
     ))
 
 ; # Import

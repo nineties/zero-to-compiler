@@ -2,4 +2,8 @@
 ; Copyright (C) 2026 nineties
 
 (import "asm/core.lisp")
-(print (commandline-args))
+
+(def args (commandline-args))
+(when (< (length args) 3) (abort "no input file"))
+(def source (nth 2 args))
+(puts source)

@@ -36,14 +36,15 @@
     `(if ,cond ,body ())
     )
 
-(defmacro for (x ls body)
+(defmacro for (x ls body) (do
+    (def v (fresh-sym))
     `(with-scope (do
-        (def r ,ls)
-        (while (not (nil? r)) (do
-            (def ,x (car r))
+        (def ,v ,ls)
+        (while (not (nil? ,v)) (do
+            (def ,x (car ,v))
             ,body
-            (set r (cdr r))
-        )))))
+            (set ,v (cdr ,v))
+        ))))))
 
 ; (cond
 ;   (condition0 body0)

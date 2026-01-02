@@ -34,6 +34,15 @@
 (expect (cadr '(1 2)) 2)
 (expect (cdar '((1 2) 3)) '(2))
 
+(expect (when true 1) 1)
+(expect (when () 1) ())
+
+(expect (do
+    (def sum 0)
+    (for x '(1 2 3 4 5) (+= sum x))
+    sum)
+    15)
+
 (expect (length ()) 0)
 (expect (length '(1 2 3)) 3)
 (expect (list 1 2 3) '(1 2 3))

@@ -103,9 +103,12 @@
 (defmacro /= (x v) `(set ,x (/ ,x ,v)))
 (defmacro %= (x v) `(set ,x (% ,x ,v)))
 
-(define abort (msg) (do (puts msg) (exit 1)))
-(define not-implemented () (abort "not implemented"))
-(define not-reachable () (abort "not reachable"))
+(defmacro && (a b) `(if ,a (if ,b true ()) ()))
+(defmacro || (a b) `(if ,a true (if ,b true ())))
+
+(define abort (msg) (do (put "abort: ") (puts msg) (exit 1)))
+(define not-implemented (msg) (do (put "not implemented: ") (puts msg) (exit 1)))
+(define not-reachable (msg) (do (put "not reachable: ") (puts msg) (exit 1)))
 
 ; # List Functions
 (define list args args)

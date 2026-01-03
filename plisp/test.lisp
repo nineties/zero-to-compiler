@@ -92,6 +92,10 @@
 (expect (second '(1 2 3)) 2)
 (expect (third '(1 2 3)) 3)
 (expect (nth 1 '(1 2 3)) 2)
+(expect-true (all? (lambda (n) (> n 0)) '(1 2 3)))
+(expect-nil  (all? (lambda (n) (> n 0)) '(0 1 2)))
+(expect-true (any? (lambda (n) (> n 0)) '(0 1 2)))
+(expect-nil  (any? (lambda (n) (> n 0)) '(0 -1 -2)))
 
 (expect       (assoc 1 '((0 "zero") (1 "one") (2 "two"))) "one")
 (expect-error (assoc 3 '((0 "zero") (1 "one") (2 "two"))))

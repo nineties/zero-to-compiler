@@ -128,6 +128,18 @@
     (true       (nth (- i 1) (cdr ls)))
     ))
 
+(define all? (f ls) (cond
+    ((nil? ls)      true)
+    ((f (car ls))   (all? f (cdr ls)))
+    (true           ())
+    ))
+
+(define any? (f ls) (cond
+    ((nil? ls)      ())
+    ((f (car ls))   true)
+    (true           (any? f (cdr ls)))
+    ))
+
 ; # Assoc List
 (define acons (k v ls) (cons (list k v) ls))
 (define assoc (k ls) (cond

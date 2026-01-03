@@ -121,6 +121,11 @@
     ((= k (caar ls))    (cadar ls))
     (true               (assoc k (cdr ls)))
     ))
+(define assoc-set (k v ls) (cond
+    ((nil? ls)          'error)
+    ((= k (caar ls))    (setcar v (cdar ls)))
+    (true               (assoc-set k v (cdr ls)))
+    ))
 (define make-assoc (ls)
     (if (nil? ls)
         ()

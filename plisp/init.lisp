@@ -135,6 +135,13 @@
     ((= i 0)    (car ls))
     (true       (nth (- i 1) (cdr ls)))
     ))
+(define reverse (ls) (do
+    (def r ())
+    (while ls (do
+        (set r (cons (car ls) r))
+        (set ls (cdr ls))
+        ))
+    r))
 
 (define all? (f ls) (cond
     ((nil? ls)      true)

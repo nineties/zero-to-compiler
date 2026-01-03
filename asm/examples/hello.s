@@ -10,12 +10,12 @@
 
 (section text)
 (label start)
-    (mov 1 %rax)                ; SYS_WRITE
-    (mov 1 %rdi)                ; stdout
-    (lea (mem msg %rip) %rsi)   ; addr
-    (mov len %rdx)              ; length
+    (mov %eax 1)                ; SYS_WRITE
+    (mov %rdi 1)                ; stdout
+    (lea %rsi (mem msg %rip))   ; addr
+    (mov %rdx len)              ; length
     (syscall)
 
-    (mov 60 %rax)   ; SYS_EXIT
+    (mov %rax 60)   ; SYS_EXIT
     (xor %rdi %rdi) ; exit code 0
     (syscall)

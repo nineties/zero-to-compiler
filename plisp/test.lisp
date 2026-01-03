@@ -58,6 +58,19 @@
     (true       2)
     ) 2)
 
+(expect (switch 0
+    (0 "zero")
+    (1 "one")
+    (2 "two")
+    "other") "zero")
+
+(expect (switch 3
+    (0 "zero")
+    (1 "one")
+    (2 "two")
+    "other") "other")
+
+
 (expect (do
     (def sum 0)
     (for x '(1 2 3 4 5) (+= sum x))

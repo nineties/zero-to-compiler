@@ -51,6 +51,19 @@
         (f pairs)
     ))
 
+(defmacro switch args (do
+    (def e (car args))
+    (def cases (cdr args))
+    (def v (fresh-sym))
+    (define f (cases) (cond
+            ((nil? cases)   (abort "malformed switch statement"))
+            ((nil? (cdr cases)) (car cases))
+            (true `(if (= ,(caar cases) ,v) ,(cadar cases) ,(f (cdr cases))))
+            ))
+    `(do (def ,v ,e) ,(f cases))
+    ))
+
+
 (defmacro for (x ls body) (do
     (def v (fresh-sym))
     `(with-scope (do

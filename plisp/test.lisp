@@ -34,6 +34,16 @@
 (expect (cdr '(1 2)) '(2))
 (expect (cadr '(1 2)) 2)
 (expect (cdar '((1 2) 3)) '(2))
+(expect (do
+    (def x '(1 2 3))
+    (setcar 2 x)
+    x
+    ) '(2 2 3))
+(expect (do
+    (def x '(1 2 3))
+    (setcdr () x)
+    x
+    ) '(1))
 
 (expect (when true 1) 1)
 (expect (when () 1) ())
